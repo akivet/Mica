@@ -1,14 +1,16 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.png">
-  <img src="assets/banner-light.png" alt="Mica v0.5 4B Preview" width="100%">
-</picture>
+<div align="center">
 
-<p align="center">
-  <a href="https://huggingface.co/sky7350/Mica-v0.5-4B">Model card</a> &nbsp;·&nbsp;
-  <a href="#quick-start">Quick start</a> &nbsp;·&nbsp;
-  <a href="#api">API</a> &nbsp;·&nbsp;
-  <a href="#configuration">Configuration</a>
-</p>
+# Mica
+
+Ask a question about any input, list the answers you allow, and get a calibrated probability for each one.
+
+[**Model card**](https://huggingface.co/sky7350/Mica-v0.5-4B) &nbsp;·&nbsp; [**Quick start**](#quick-start) &nbsp;·&nbsp; [**API**](#api) &nbsp;·&nbsp; [**Configuration**](#configuration)
+
+| 4B | 32,768 | 2–255 | 3 | EN · KO · ZH | Apache-2.0 |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| parameters | input tokens | options or score levels | question types | main languages | license |
+
+</div>
 
 Mica is a 4B model for making decisions inside software. Send it the material a decision depends on, the questions
 you need answered and the answers you allow; it returns a probability for every answer. No text is generated, so the
