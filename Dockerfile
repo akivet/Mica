@@ -1,7 +1,8 @@
-# Mica v0.1 4B - TypeSafe /v1/systemone server, one image.
-#   docker build -t mica-v0.1-4b .
-#   docker run --gpus all -p 8010:8010 -v mica-weights:/weights mica-v0.1-4b
-# Weights are pulled from Hugging Face at the pinned revision on first start (cached in the /weights volume).
+# Mica v0.5 4B Preview - TypeSafe /v1/systemone server, one image.
+#   docker build -t mica-v0.5-4b-preview .
+#   docker run --gpus all -p 8010:8010 -v mica-weights:/weights mica-v0.5-4b-preview
+# Weights are pulled from Hugging Face at MICA_REVISION on first start (cached in the /weights volume).
+# Other quantizations: -e MICA_GGUF=mica-v0.5-4b-preview-{BF16,Q8_0,Q6_K,Q5_K_M,Q4_K_M}.gguf
 # CUDA_ARCH: 86 = RTX 3090/A6000, 89 = RTX 40xx/L40S, 90 = H100/H200. Several: "86;89;90".
 ARG CUDA_ARCH="86;89;90"
 
@@ -23,9 +24,11 @@ COPY --from=runtime-build /runtime /app/runtime
 COPY mica /app/mica
 COPY calibration.json scripts/entrypoint.sh /app/
 WORKDIR /app
-ENV MICA_REPO=sky7350/Mica-v0.1-4B \
-    MICA_REVISION=ca36594cc2067c7252704f9f304cc10ef11c7c5c \
-    MICA_GGUF=mica-v0.1-4b-BF16.gguf \
+# MICA_REVISION gets pinned to the upload commit of the weights.
+ENV MICA_REPO=sky7350/Mica-v0.5-4B \
+    MICA_REVISION=main \
+    MICA_GGUF=mica-v0.5-4b-preview-Q8_0.gguf \
+    MICA_NAME=mica-v0.5-4b-preview \
     PORT=8010
 EXPOSE 8010
 ENTRYPOINT ["bash", "/app/entrypoint.sh"]

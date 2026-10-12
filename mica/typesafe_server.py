@@ -1,74 +1,45 @@
-"""Jev/TypeSafe-compatible HTTP endpoint for Mica (TypeSafe /v1/systemone wire format).
+"""HTTP endpoint for Mica on the TypeSafe /v1/systemone wire format.
 
-python -m mica.typesafe_server --gguf model.gguf --hf <tokenizer dir> [--calibration calib.json] [--port 8010]
-POST /v1/systemone  (same path as the TypeSafe API and Kev's local server)
-  request : {"model": "...", "state": "<text or object>", "questions": {"<name>": {"type": "noul"|"choice"|"score",
-             "instructions": "...", "criteria": {id: text} (noul: keys false/true; choice: option ids) | [level texts] (score)}}}
-  response: {"model": "mica-v0.1-4b", "answers": {"<name>": {...}}, "usage": {"input_tokens": N, "output_tokens": 0}, "latency_ms": ms}
-    noul   -> {"type": "noul", "noul": p_true, "answer": bool, "confidence": max(p)}
-    choice -> {"type": "choice", "choice": id, "probabilities": {id: p}, "answer": id, "confidence": max(p)}
-    score  -> {"type": "score", "score": int, "probabilities": {"0".."n-1": p}, "answer": int, "confidence": max(p)}
-Questions on the same state share the rendered prefix (one prefill of the state, suffixes decoded as independent
-sequences), which is exactly the multi-question pattern of the wire format. Invalid requests return HTTP 400.
+python -m mica.typesafe_server --gguf model.gguf --hf <tokenizer dir> --runtime <llama.cpp build> [--calibration calib.json]
+
+POST /v1/systemone (alias /v1/decide)
+  request : {"model": "...", "state": <text or JSON value>,
+             "questions": {"<name>": {"type": "noul" | "choice" | "score", "instructions": <text or JSON value>,
+                                      "criteria": ...,                  # see below
+                                      "multi": bool,                    # choice only
+                                      "allow_cannot_grade": bool,       # score only
+                                      "abstain_threshold": 0..1}}}
+    noul   criteria: {"false": ..., "true": ...} in any order (optional; defaults to No / Yes)
+    choice criteria: {"<id>": <text or JSON value>, ...} with 2..255 entries
+    score  criteria: [<level text or JSON value>, ...] lowest first, 2..255 levels (254 with allow_cannot_grade)
+  response: {"model": "...", "answers": {"<name>": {...}}, "usage": {"input_tokens": N, "output_tokens": 0},
+             "latency_ms": ms}
+    noul           -> {"type": "noul", "noul": p_true}
+    choice         -> {"type": "choice", "choice": id, "probabilities": {id: p}, "confidence": c}
+    choice (multi) -> {"type": "choice", "multi": true, "inclusion": {id: p}, "selected": [id, ...],
+                       "count_distribution": [...], "expected_count": x}
+    score          -> {"type": "score", "score": expected level, "level": mode, "probabilities": {"0".."n-1": p},
+                       "legend": {...}, "confidence": c, "expected_level": x, "margin": m
+                       [, "cannot_grade_probability": p]}
+    with abstain_threshold, an answer also carries "confidence_pmax" and "abstain".
+Questions on the same state share the rendered prefix: the state is prefilled once and each question's suffix is
+decoded as an independent sequence. ``usage.input_tokens`` counts that shared prefix once. Invalid requests and
+inputs longer than the context return HTTP 400; input is never truncated.
 """
-import argparse, json, time
+import argparse
+import json
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from .contract import answer_request
+
 JUDGE = None
-MODEL_NAME = 'mica-v0.1-4b'
-
-
-def rows_from_request(body):
-    state = body.get('state')
-    if not isinstance(state, str):
-        state = json.dumps(state, ensure_ascii=False, indent=1)
-    qs = body.get('questions')
-    if not isinstance(qs, dict) or not qs:
-        raise ValueError('questions must be a non-empty object')
-    rows = []
-    for name, q in qs.items():
-        kind = str(q.get('type', '')).lower()
-        crit = q.get('criteria')
-        if kind == 'noul':
-            if isinstance(crit, dict):
-                f = crit.get('false') or crit.get('no') or 'false'
-                t = crit.get('true') or crit.get('yes') or 'true'
-            else:
-                f, t = 'false', 'true'
-            cands = [{'id': 'false', 'text': str(f)}, {'id': 'true', 'text': str(t)}]
-        elif kind == 'choice':
-            if not isinstance(crit, dict) or len(crit) < 2:
-                raise ValueError(f'{name}: choice needs criteria {{id: text}} with >= 2 options')
-            cands = [{'id': str(k), 'text': str(v)} for k, v in crit.items()]
-        elif kind == 'score':
-            if not isinstance(crit, list) or not 2 <= len(crit) <= 10:
-                raise ValueError(f'{name}: score needs 2-10 level texts')
-            cands = [{'id': str(i), 'text': str(v)} for i, v in enumerate(crit)]
-        else:
-            raise ValueError(f'{name}: unknown type {kind!r}')
-        rows.append({'id': name, 'kind': kind, 'state': state, 'question': str(q.get('instructions', '')), 'candidates': cands})
-    return rows
-
-
-def answer(row, p):
-    # JevBench's `typesafe` adapter requires "type" on every answer and "choice" on choice answers
-    # (TypeSafe's own shape); "answer" is kept for older clients.
-    conf = max(p)
-    if row['kind'] == 'noul':
-        return {'type': 'noul', 'noul': p[1], 'answer': p[1] >= 0.5, 'confidence': conf}
-    ids = [c['id'] for c in row['candidates']]
-    k = max(range(len(p)), key=p.__getitem__)
-    out = {'type': row['kind'], 'probabilities': dict(zip(ids, p)), 'answer': ids[k], 'confidence': conf}
-    if row['kind'] == 'choice':
-        out['choice'] = ids[k]
-    else:
-        out['score'] = k
-        out['answer'] = k
-    return out
+MODEL_NAME = 'mica-v0.5-4b-preview'
+MAX_BODY_BYTES = 64 * 1024 * 1024
 
 
 def input_tokens(rows):
-    """Prefill tokens actually computed: the shared state prefix once, plus each question's own suffix."""
+    """Prefill tokens actually needed: the shared prefix once, plus each question's own suffix."""
     from .native import prompt_for
     toks = [JUDGE.tokenize(prompt_for(r, JUDGE.tokenizer)) for r in rows]
     common = 0
@@ -78,11 +49,27 @@ def input_tokens(rows):
     return sum(len(t) for t in toks) - common * (len(toks) - 1)
 
 
+def answer(body):
+    """Answer one parsed request; ValueError means the request is invalid or too long."""
+    judged = []
+
+    def predict(rows):
+        judged.extend(rows)
+        return JUDGE.judge(rows, share_prefix=len(rows) > 1)
+
+    response = answer_request(body, predict, model=MODEL_NAME)
+    response['usage'] = {'input_tokens': input_tokens(judged) if judged else 0, 'output_tokens': 0}
+    return response
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code, obj):
         data = json.dumps(obj, ensure_ascii=False).encode('utf-8')
-        self.send_response(code); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(data)))
-        self.end_headers(); self.wfile.write(data)
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def do_GET(self):
         if self.path.rstrip('/') in ('/health', '/v1/models'):
@@ -94,17 +81,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(404, {'error': 'not found'})
         t0 = time.time()
         try:
-            body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
-            rows = rows_from_request(body)
-        except (ValueError, json.JSONDecodeError) as e:
+            length = int(self.headers.get('Content-Length', 0))
+            if length < 0 or length > MAX_BODY_BYTES:
+                raise ValueError('request body is too large')
+            body = json.loads(self.rfile.read(length) or b'{}')
+            response = answer(body)
+        except ValueError as e:  # invalid JSON, contract violations, inputs over the context (never truncated)
             return self._send(400, {'error': str(e)})
-        try:
-            probs = JUDGE.judge(rows, share_prefix=len(rows) > 1)
-        except ValueError as e:  # e.g. input over the length contract: never truncated
-            return self._send(400, {'error': str(e)})
-        self._send(200, {'model': MODEL_NAME, 'answers': {r['id']: answer(r, p) for r, p in zip(rows, probs)},
-                         'usage': {'input_tokens': input_tokens(rows), 'output_tokens': 0},
-                         'latency_ms': round((time.time() - t0) * 1000, 1)})
+        except RecursionError:
+            return self._send(400, {'error': 'request is nested too deeply'})
+        except Exception as e:  # runtime failure
+            return self._send(500, {'error': f'{type(e).__name__}: {e}'})
+        response['latency_ms'] = round((time.time() - t0) * 1000, 1)
+        self._send(200, response)
 
     def log_message(self, *a):
         pass
@@ -113,12 +102,18 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     global JUDGE, MODEL_NAME
     ap = argparse.ArgumentParser()
-    ap.add_argument('--gguf', required=True); ap.add_argument('--hf', required=True)
-    ap.add_argument('--calibration'); ap.add_argument('--runtime', required=True)
-    ap.add_argument('--port', type=int, default=8010); ap.add_argument('--host', default='127.0.0.1')
-    ap.add_argument('--n-ctx', type=int, default=8192); ap.add_argument('--seqs', type=int, default=8)
-    ap.add_argument('--flash-attn', type=int, default=-1, help='-1 auto, 0 off (Vulkan/RX6600XT), 1 on')
-    ap.add_argument('--name', default='mica-v0.1-4b')
+    ap.add_argument('--gguf', required=True)
+    ap.add_argument('--hf', required=True, help='directory with tokenizer.json, tokenizer_config.json, chat_template.jinja')
+    ap.add_argument('--calibration')
+    ap.add_argument('--runtime', required=True, help='directory with the llama.cpp shared libraries')
+    ap.add_argument('--port', type=int, default=8010)
+    ap.add_argument('--host', default='127.0.0.1')
+    ap.add_argument('--n-ctx', type=int, default=32768, help='context per question (tokens); longer inputs get HTTP 400')
+    # Each sequence holds a full --n-ctx of attention KV (about 1 GiB at 32k for this model at F16), so 8 sequences
+    # plus BF16 weights fit a 24 GB GPU. More questions than --seqs are answered in windows of --seqs.
+    ap.add_argument('--seqs', type=int, default=8, help='parallel sequences (questions decoded together)')
+    ap.add_argument('--flash-attn', type=int, default=-1, help='-1 auto, 0 off (e.g. some Vulkan GPUs), 1 on')
+    ap.add_argument('--name', default='mica-v0.5-4b-preview')
     a = ap.parse_args()
     from transformers import AutoTokenizer
     from .direct_backend import DirectJudge

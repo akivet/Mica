@@ -3,10 +3,9 @@
 Every judgment is read out of one forward pass as a distribution over label
 tokens, so the labels must each be a single token in the deployed tokenizer and
 must not move between training and serving. The first 52 entries are the
-original A-Z/a-z labels, so an adapter trained before the codebook grew keeps
-its exact output rows; the rest are the uppercase two-letter combinations that
-this tokenizer encodes as one token, in alphabetical order, up to the 255
-candidates a Choice may carry.
+A-Z/a-z labels; the rest are the uppercase two-letter combinations that this
+tokenizer encodes as one token, in alphabetical order, up to the 255 candidates
+a Choice may carry.
 
 ``No``/``Yes`` are the Noul readout and are kept separate from the Choice
 labels: they are distinct single tokens, and a Noul never uses a letter label.
@@ -32,14 +31,14 @@ TOKENIZER_REVISION = _CODEBOOK.get('revision')
 if len(OPTION_LABELS) != MAX_CANDIDATES or len(set(READOUT_LABELS)) != len(READOUT_LABELS):
     raise ValueError('stored codebook must hold 255 distinct candidate labels')
 if OPTION_LABELS[:52] != list(string.ascii_uppercase + string.ascii_lowercase):
-    raise ValueError('the first 52 labels must stay A-Z/a-z so earlier adapters keep their rows')
+    raise ValueError('the first 52 labels must stay A-Z/a-z')
 
 
 def verify(tokenizer) -> dict[str, int]:
     """Fail loudly if this checkpoint cannot serve the codebook.
 
     Called wherever the codebook is bound to a real tokenizer, so a mismatch
-    surfaces before training or export rather than as silent label collisions.
+    surfaces up front rather than as silent label collisions.
     """
     encoded = [tokenizer.encode(label, add_special_tokens=False) for label in READOUT_LABELS]
     multi = [label for label, ids in zip(READOUT_LABELS, encoded) if len(ids) != 1]

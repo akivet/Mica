@@ -9,8 +9,10 @@ much as the top one, because the whole row vector is already in memory.
 
 Independent questions are independent sequences. Each gets its own ``seq_id`` in
 one batch, so llama.cpp keeps a separate state per question - attention KV and,
-for the GDN layers of this hybrid model, the convolution and recurrent state -
-and one question can never attend to another's tokens.
+for the linear-attention blocks of this hybrid model, the convolution and
+recurrent state - and one question can never attend to another's tokens.
+More questions than ``n_seq_max`` are answered in windows of ``n_seq_max``
+sequences.
 
 A shared prefix is opt-in through ``share_prefix``. The prefix is decoded once
 into a donor sequence and then copied with ``llama_memory_seq_cp``, which copies

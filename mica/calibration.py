@@ -5,18 +5,15 @@ from pathlib import Path
 
 
 def load_calibration(path, *, model_identity=None):
+    """Read ``{"temperature": T, ...}``: one global temperature applied to every judgment kind.
+
+    Other keys (for example ``method``) are descriptive. ``model_identity`` is accepted for API compatibility and
+    unused by this format.
+    """
     fitted = json.loads(Path(path).read_text(encoding='utf-8'))
-    if fitted.get('schema') == 'mica-v3-temperatures-v1':
-        identity = fitted.get('model_identity', {}).get('id')
-        if not identity or model_identity != identity:
-            raise ValueError('Calibrator model identity mismatch; provide the pinned runtime identity')
-        temperatures = fitted.get('temperatures')
-        if not isinstance(temperatures, dict) or not temperatures:
-            raise ValueError('Calibrator has no fitted temperatures')
-    elif 'schema' not in fitted and 'temperature' in fitted:
-        temperatures = {kind: fitted['temperature'] for kind in ('noul', 'choice', 'score')}
-    else:
+    if not isinstance(fitted, dict) or 'schema' in fitted or 'temperature' not in fitted:
         raise ValueError('Unsupported calibration schema')
+    temperatures = {kind: fitted['temperature'] for kind in ('noul', 'choice', 'score')}
     for kind, value in temperatures.items():
         if kind not in ('noul', 'choice', 'score') or type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
             raise ValueError('Calibration temperature must be a positive finite number for a supported kind')
