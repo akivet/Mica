@@ -2,9 +2,9 @@
 # Download the weights once (GGUF + tokenizer files) and serve /v1/systemone on $PORT.
 set -euo pipefail
 MICA_REPO=${MICA_REPO:-sky7350/Mica-v0.5-4B}
-MICA_REVISION=${MICA_REVISION:-main}  # gets pinned to the upload commit of the weights
-MICA_GGUF=${MICA_GGUF:-mica-v0.5-4b-preview-Q8_0.gguf}
-MICA_NAME=${MICA_NAME:-mica-v0.5-4b-preview}
+MICA_REVISION=${MICA_REVISION:-main}
+MICA_GGUF=${MICA_GGUF:-mica-v0.5-4b-Q8_0.gguf}
+MICA_NAME=${MICA_NAME:-mica-v0.5-4b}
 PORT=${PORT:-8010}
 W=${WEIGHTS_DIR:-/weights}
 if [ ! -f "$W/$MICA_GGUF" ]; then

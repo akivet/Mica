@@ -233,7 +233,7 @@ class DirectJudge:
         context_params.n_batch = max(n_ctx, 2048)
         # A ubatch as large as n_ctx spills VRAM on 8 GB cards; 512 is several times faster there.
         context_params.n_ubatch = n_ubatch or 512
-        # -1 auto, 0 off, 1 on. On Vulkan (RX 6600 XT) flash attention is slower at ~2k tokens, so pass 0 there;
+        # -1 auto, 0 off, 1 on. On some Vulkan GPUs flash attention is slower at ~2k tokens, so pass 0 there;
         # CUDA keeps auto.
         context_params.flash_attn_type = flash_attn
         context_params.n_seq_max = n_seq_max

@@ -34,7 +34,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .contract import answer_request
 
 JUDGE = None
-MODEL_NAME = 'mica-v0.5-4b-preview'
+MODEL_NAME = 'mica-v0.5-4b'
 MAX_BODY_BYTES = 64 * 1024 * 1024
 
 
@@ -113,7 +113,7 @@ def main():
     # plus BF16 weights fit a 24 GB GPU. More questions than --seqs are answered in windows of --seqs.
     ap.add_argument('--seqs', type=int, default=8, help='parallel sequences (questions decoded together)')
     ap.add_argument('--flash-attn', type=int, default=-1, help='-1 auto, 0 off (e.g. some Vulkan GPUs), 1 on')
-    ap.add_argument('--name', default='mica-v0.5-4b-preview')
+    ap.add_argument('--name', default='mica-v0.5-4b')
     a = ap.parse_args()
     from transformers import AutoTokenizer
     from .direct_backend import DirectJudge
