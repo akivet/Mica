@@ -5,8 +5,11 @@
   <a href="#quick-start"><b>Quick start</b></a> &nbsp;·&nbsp;
   <a href="#api"><b>API</b></a> &nbsp;·&nbsp;
   <a href="#choose-a-file"><b>Choose a file</b></a> &nbsp;·&nbsp;
-  <a href="#configuration"><b>Configuration</b></a>
+  <a href="#configuration"><b>Configuration</b></a> &nbsp;·&nbsp;
+  <a href="https://ko-fi.com/micakiv"><b>Ko-fi</b></a>
 </p>
+
+<p align="center">Looking forward to v1.0? A small donation on <a href="https://ko-fi.com/micakiv">Ko-fi</a> would mean a lot. I'm just a broke student, and I need your help.</p>
 
 Mica is a 4B model for making decisions inside software. Send it the material a decision depends on, the questions
 you need answered and the answers you allow; it returns a probability for every answer. No text is generated, so the
