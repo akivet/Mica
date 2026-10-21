@@ -1,0 +1,37 @@
+{
+ "python": "3.11",
+ "endpoint": "/v1/systemone",
+ "temperature": 1.0,
+ "profiles": {
+  "recipe": "optimized runtime and long-input mode (default)",
+  "plain": "reference execution"
+ },
+ "hf": {
+  "device": "cuda",
+  "dtype": "bfloat16",
+  "max_length": 32768,
+  "precision": "auto (--w8a8 auto|off)",
+  "int8_weights": "model-int8.safetensors",
+  "memory_limit": "--memory-limit GiB (0 = whole card)"
+ },
+ "gguf": {
+  "runtime": "llama.cpp shared library (CUDA build)",
+  "n_ctx": 8192,
+  "seqs": 4,
+  "prefix_cache": true,
+  "start_warm": true,
+  "keep_alive": true
+ },
+ "llama_server": {
+  "flags": [
+   "--cache-ram",
+   "0",
+   "--no-cache-idle-slots",
+   "--ctx-checkpoints",
+   "0",
+   "--sleep-idle-seconds",
+   "-1"
+  ],
+  "note": "llama.cpp server flags for desktop use"
+ }
+}

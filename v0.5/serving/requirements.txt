@@ -1,0 +1,8 @@
+torch==2.7.1
+transformers==5.5.0
+safetensors>=0.5
+huggingface_hub
+flash-linear-attention==0.5.2
+causal-conv1d==1.7.0
+einops
+numpy

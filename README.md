@@ -52,7 +52,25 @@ are on the [model card](https://huggingface.co/sky7350/Mica-v0.5-4B#results).
 
 ## Quick start
 
-### Docker
+### CUDA runtime (INT8, NVIDIA GPUs with 8 GB or more)
+
+Linux, CUDA 12, Python 3.11 (the runtime is built for 3.11):
+
+```bash
+git clone https://github.com/akivet/Mica && cd Mica
+python3.11 -m venv .venv && . .venv/bin/activate
+pip install -r v0.5/serving/requirements.txt
+hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
+python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010
+```
+
+INT8 runs on compute capability 8.0 and newer (RTX 30/40/50 series, RTX A-series and Ada workstation cards, L4, L40S,
+A100, H100, H200, B200); other GPUs fall back to bfloat16 by themselves. The first start on a GPU takes one to two
+minutes (kernel tuning and CUDA graph capture, kept in `--state-dir`); later starts are shorter. The longest input is
+set from the GPU's memory (the GPU table lists it). For bfloat16 from the full weights, download
+`model.safetensors*`, `*.json`, `*.jinja` and `*.txt` and run with `--model weights --w8a8 off`.
+
+### Docker (GGUF, llama.cpp)
 
 ```bash
 git clone https://github.com/akivet/Mica && cd Mica
@@ -64,7 +82,7 @@ The first start downloads `mica-v0.5-4b-Q8_0.gguf` and the tokenizer into the `m
 pick a file from [Choose a file](#choose-a-file) and pass it as `-e MICA_GGUF=...`. The image is built for CUDA
 architectures 86, 89 and 90 (RTX 30xx, RTX 40xx and L40S, H100); pass `--build-arg CUDA_ARCH=...` for others.
 
-### Without Docker
+### Without Docker (GGUF, llama.cpp)
 
 Linux, CUDA 12, Python 3.10 or newer:
 
@@ -129,8 +147,9 @@ search and routing decisions, see the [prompting guide](https://huggingface.co/s
 |---|---|---|:---:|:---:|
 | 24 GB and up | RTX 3090, 4090, 5090 | INT8 · CUDA runtime | 32k | same |
 | 16 GB | RTX 4060 Ti 16 GB, 5060 Ti | INT8 · CUDA runtime | 27k | same |
-| 12 GB | RTX 3060 12 GB, 4070 | `mica-v0.5-4b-Q8_0.gguf` | — | -0.2 pt |
-| 8 GB | RTX 3070, 4060 | `mica-v0.5-4b-IQ4_XS.gguf` | — | -0.4 pt |
+| 12 GB | RTX 3060 12 GB, 4070 | INT8 · CUDA runtime | 12k | same |
+| 8 GB | RTX 3070, 4060 | INT8 · CUDA runtime | 6k | same |
+| AMD, Apple, CPU | RX 7900, M-series | `mica-v0.5-4b-Q8_0.gguf` | — | -0.2 pt |
 
 All files are in [sky7350/Mica-v0.5-4B](https://huggingface.co/sky7350/Mica-v0.5-4B/tree/main).
 
