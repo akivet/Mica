@@ -12,7 +12,11 @@ Mica is a 4B model for making decisions inside software. Send it the material a 
 you need answered and the answers you allow; it returns a probability for every answer. No text is generated, so the
 cost of a decision is one read of the input.
 
-This repository is the HTTP server for **Mica v0.5 4B**. It runs the GGUF weights through llama.cpp on one GPU.
+This repository is the HTTP server for **Mica v0.5 4B**. It runs the INT8 weights on the CUDA runtime, or the GGUF weights on llama.cpp, on one GPU.
+
+- **Option order does not move it.** Shuffle the allowed answers and it picks the same one 97.3% of the time.
+- **It can hold back.** Set `abstain_threshold` and it flags the cases it is not sure about instead of guessing.
+- **Score questions take 2–255 levels**, choice questions up to 255 options, inputs up to 32k tokens.
 
 | 4B | 32,768 | 2–255 | 0 | EN · KO · ZH | Apache-2.0 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
