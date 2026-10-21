@@ -1,0 +1,10 @@
+# Windows (experimental): CUDA build of torch, the Windows port of Triton, no causal-conv1d (the runtime uses torch's conv)
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.7.1+cu128
+triton-windows==3.3.1.post21
+transformers==5.5.0
+safetensors>=0.5
+huggingface_hub
+flash-linear-attention==0.5.2
+einops
+numpy

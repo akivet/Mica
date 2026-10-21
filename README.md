@@ -72,7 +72,7 @@ Measured on one NVIDIA RTX 6000 Ada with the INT8 CUDA runtime. Per-task latency
 
 ### CUDA runtime (INT8, NVIDIA GPUs with 8 GB or more)
 
-Linux or Windows through WSL2, CUDA 12, Python 3.10 to 3.13:
+Linux (or WSL2 on Windows), CUDA 12, Python 3.10 to 3.13:
 
 ```bash
 git clone https://github.com/akivet/Mica && cd Mica
@@ -81,6 +81,19 @@ pip install -r v0.5/serving/requirements.txt
 hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
 python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010
 ```
+
+Windows (experimental), Python 3.10 to 3.13, an NVIDIA driver for CUDA 12.8, in PowerShell:
+
+```powershell
+git clone https://github.com/akivet/Mica; cd Mica
+py -3.12 -m venv .venv; .venv\Scripts\Activate.ps1
+pip install -r v0.5/serving/requirements-windows.txt
+hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
+python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010
+```
+
+The Windows build uses the Windows port of Triton (`triton-windows`) and has only been checked on CPU so far. If the
+start line says `bfloat16` or requests are slow, run the Linux commands above in WSL2, which runs at full speed.
 
 INT8 runs on compute capability 8.0 and newer (RTX 30/40/50 series, RTX A-series and Ada workstation cards, L4, L40S,
 A100, H100, H200, B200); other GPUs fall back to bfloat16 by themselves. The first start on a GPU takes one to two

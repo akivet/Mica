@@ -97,7 +97,7 @@ their go-ahead.
 Mica in code, and INT8 is the fast path: about 2x faster than the GGUF files (1.6x at short inputs) at the same accuracy. Use GGUF (llama.cpp)
 only when there is no suitable NVIDIA GPU (AMD, Apple, CPU).
 
-INT8 setup (Linux, or Windows through WSL2; Python 3.10 to 3.13):
+INT8 setup (Linux or WSL2; Python 3.10 to 3.13):
 
 ```bash
 git clone https://github.com/akivet/Mica && cd Mica
@@ -106,6 +106,9 @@ pip install -r v0.5/serving/requirements.txt
 hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
 python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010 --state-dir .mica-state
 ```
+
+Native Windows is experimental (PowerShell, same steps with `.venv\Scripts\Activate.ps1` and
+`v0.5/serving/requirements-windows.txt`). If its start line says `bfloat16` or it is slow, use WSL2 instead.
 
 Settings that matter:
 - **`--state-dir` on a persistent disk.** The first start on a GPU tunes kernels and captures CUDA graphs

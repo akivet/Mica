@@ -48,8 +48,16 @@ def main():
         ctx = "32k" if best["memory_gib"] >= 23 else "27k" if best["memory_gib"] >= 15.5 else "12k" if best["memory_gib"] >= 11.5 else "6k"
         print(f"\nRecommended: INT8 CUDA runtime on {best['name']} (longest input about {ctx} tokens). Fastest path.")
         if os_name == "Windows":
-            print("The INT8 runtime is built for Linux: on Windows run the commands below inside WSL2 (Ubuntu), "
-                  "which sees the NVIDIA GPU through the Windows driver.")
+            print(r"""
+Native Windows (experimental), PowerShell, Python 3.10 to 3.13:
+git clone https://github.com/akivet/Mica; cd Mica
+py -3.12 -m venv .venv; .venv\Scripts\Activate.ps1
+pip install -r v0.5/serving/requirements-windows.txt
+hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
+python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010 --state-dir .mica-state
+
+If its start line says "bfloat16" or requests are slow, use WSL2 (Ubuntu) with the Linux commands below instead;
+WSL2 sees the NVIDIA GPU through the Windows driver and runs at full speed.""")
         print(r"""
 git clone https://github.com/akivet/Mica && cd Mica
 python3 -m venv .venv && . .venv/bin/activate          # Python 3.10 to 3.13
