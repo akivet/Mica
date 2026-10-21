@@ -47,9 +47,12 @@ def main():
     if best and best["memory_gib"] >= 7.5 and float(best["compute_cap"]) >= 8.0 and os_name in ("Linux", "Windows"):
         ctx = "32k" if best["memory_gib"] >= 23 else "27k" if best["memory_gib"] >= 15.5 else "12k" if best["memory_gib"] >= 11.5 else "6k"
         print(f"\nRecommended: INT8 CUDA runtime on {best['name']} (longest input about {ctx} tokens). Fastest path.")
+        if os_name == "Windows":
+            print("The INT8 runtime is built for Linux: on Windows run the commands below inside WSL2 (Ubuntu), "
+                  "which sees the NVIDIA GPU through the Windows driver.")
         print(r"""
 git clone https://github.com/akivet/Mica && cd Mica
-python3.11 -m venv .venv && . .venv/bin/activate        # Windows: .venv\Scripts\activate
+python3 -m venv .venv && . .venv/bin/activate          # Python 3.10 to 3.13
 pip install -r v0.5/serving/requirements.txt
 hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
 python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010 --state-dir .mica-state

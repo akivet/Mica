@@ -26,11 +26,11 @@ their go-ahead.
 Mica in code, and INT8 is the fast path: about 2x faster than the GGUF files (1.6x at short inputs) at the same accuracy. Use GGUF (llama.cpp)
 only when there is no suitable NVIDIA GPU (AMD, Apple, CPU).
 
-INT8 setup (Linux or Windows, Python 3.11):
+INT8 setup (Linux, or Windows through WSL2; Python 3.10 to 3.13):
 
 ```bash
 git clone https://github.com/akivet/Mica && cd Mica
-python3.11 -m venv .venv && . .venv/bin/activate
+python3 -m venv .venv && . .venv/bin/activate
 pip install -r v0.5/serving/requirements.txt
 hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
 python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010 --state-dir .mica-state

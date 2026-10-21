@@ -72,11 +72,11 @@ Measured on one NVIDIA RTX 6000 Ada with the INT8 CUDA runtime. Per-task latency
 
 ### CUDA runtime (INT8, NVIDIA GPUs with 8 GB or more)
 
-Linux, CUDA 12, Python 3.11 (the runtime is built for 3.11):
+Linux or Windows through WSL2, CUDA 12, Python 3.10 to 3.13:
 
 ```bash
 git clone https://github.com/akivet/Mica && cd Mica
-python3.11 -m venv .venv && . .venv/bin/activate
+python3 -m venv .venv && . .venv/bin/activate
 pip install -r v0.5/serving/requirements.txt
 hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
 python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010

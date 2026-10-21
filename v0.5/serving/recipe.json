@@ -1,5 +1,5 @@
 {
- "python": "3.11",
+ "python": "auto (the loader selects the matching module in lib/; see its ABI tags)",
  "endpoint": "/v1/systemone",
  "temperature": 1.0,
  "profiles": {
