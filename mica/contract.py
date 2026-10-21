@@ -1,4 +1,4 @@
-"""TypeSafe /v1/systemone request contract: validation, rows, multi-answer expansion and the response envelope.
+"""/v1/systemone request contract: validation, rows, multi-answer expansion and the response envelope.
 
 ``rows_from_request`` turns a request into one independent row per question. ``answer_request`` runs those rows
 through any batch probability backend and packages the typed answers. A ``multi`` Choice is answered as one
@@ -45,7 +45,7 @@ def _contains_image_payload(value: Any) -> bool:
 
 
 def rows_from_request(request: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """Validate a TypeSafe System One request and create independent rows, one per question."""
+    """Validate a System One request and create independent rows, one per question."""
     if not isinstance(request, Mapping):
         raise ValueError("request must be an object")
     unknown = set(request) - {"model", "state", "questions"}
@@ -123,7 +123,7 @@ def rows_from_request(request: Mapping[str, Any]) -> list[dict[str, Any]]:
                 "question": instructions,
                 "candidates": candidates,
                 "source": {
-                    "schema": "typesafe_systemone_request",
+                    "schema": "systemone_request",
                     "request_model": request.get("model"),
                 },
             }

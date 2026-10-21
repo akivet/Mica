@@ -168,7 +168,7 @@ Docker environment variables:
 | `MICA_REVISION` | `main` | Repository revision |
 | `PORT` | `8010` | Listening port |
 
-Server flags (`python -m mica.typesafe_server --help`):
+Server flags (`python -m mica.server --help`):
 
 | Flag | Default | |
 |---|---|---|

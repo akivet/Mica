@@ -1,4 +1,4 @@
-# Mica v0.5 4B - TypeSafe /v1/systemone server, one image.
+# Mica v0.5 4B - /v1/systemone server, one image.
 #   docker build -t mica-v0.5-4b .
 #   docker run --gpus all -p 8010:8010 -v mica-weights:/weights mica-v0.5-4b
 # Weights are pulled from Hugging Face at MICA_REVISION on first start (cached in the /weights volume).

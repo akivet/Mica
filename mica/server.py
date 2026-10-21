@@ -1,6 +1,6 @@
-"""HTTP endpoint for Mica on the TypeSafe /v1/systemone wire format.
+"""HTTP endpoint for Mica on the /v1/systemone wire format.
 
-python -m mica.typesafe_server --gguf model.gguf --hf <tokenizer dir> --runtime <llama.cpp build> [--calibration calib.json]
+python -m mica.server --gguf model.gguf --hf <tokenizer dir> --runtime <llama.cpp build> [--calibration calib.json]
 
 POST /v1/systemone (alias /v1/decide)
   request : {"model": "...", "state": <text or JSON value>,
