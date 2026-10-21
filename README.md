@@ -92,8 +92,10 @@ hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
 python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010
 ```
 
-The Windows build uses the Windows port of Triton (`triton-windows`) and has only been checked on CPU so far. If the
-start line says `bfloat16` or requests are slow, run the Linux commands above in WSL2, which runs at full speed.
+PyTorch's Windows builds have no FlashAttention kernel, so the Windows runtime brings its own precompiled attention
+kernel; on a Linux GPU set up the same way it stays within 1-12% of the Linux latency (256 to 32k tokens) with the
+same accuracy. It has not run on a Windows PC yet: if the start line says `bfloat16` or requests are slow, run the
+Linux commands above in WSL2.
 
 INT8 runs on compute capability 8.0 and newer (RTX 30/40/50 series, RTX A-series and Ada workstation cards, L4, L40S,
 A100, H100, H200, B200); other GPUs fall back to bfloat16 by themselves. The first start on a GPU takes one to two
