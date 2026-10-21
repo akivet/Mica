@@ -2,6 +2,7 @@
 
 <p align="center">
   <a href="https://huggingface.co/sky7350/Mica-v0.5-4B"><b>Model card</b></a> &nbsp;·&nbsp;
+  <a href="#speed"><b>Speed</b></a> &nbsp;·&nbsp;
   <a href="#quick-start"><b>Quick start</b></a> &nbsp;·&nbsp;
   <a href="#api"><b>API</b></a> &nbsp;·&nbsp;
   <a href="#choose-a-file"><b>Choose a file</b></a> &nbsp;·&nbsp;
@@ -54,8 +55,18 @@ This repository is the HTTP server for **Mica v0.5 4B**. It runs the INT8 weight
 | d3-flash | 9B | — | 70/111 |
 | Imajev | 4B | — | 80/111 |
 
-Same items and scoring for every model; other models are our runs. Per-GPU speed numbers
-are on the [model card](https://huggingface.co/sky7350/Mica-v0.5-4B#results).
+Same items and scoring for every model; other models are our runs.
+
+## Speed
+
+<img src="assets/latency.png" alt="Latency by input length" width="100%">
+
+<img src="assets/latency_pplx27.png" alt="Mica v0.5 and Perplexity Decider 27B" width="100%">
+
+<img src="assets/latency_api.png" alt="Mica v0.5 and API models" width="100%">
+
+Measured on one NVIDIA RTX 6000 Ada with the INT8 CUDA runtime. Per-task latency and more options are on the
+[model card](https://huggingface.co/sky7350/Mica-v0.5-4B#speed).
 
 ## Quick start
 
