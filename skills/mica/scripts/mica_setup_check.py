@@ -67,8 +67,9 @@ hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
 python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010 --state-dir .mica-state
 """)
         print("Keep --state-dir on a persistent disk: the first start on a GPU tunes kernels and captures CUDA graphs "
-              "and saves them there (CPU-bound: about 34 min the first time on an RTX 3090, 14 min after; the server "
-              "prints each stage). Run it as a long-lived service, not per call.")
+              "and saves them there (about 3 min the first time and 1 min after on an RTX 6000 Ada; CPU-bound, so a "
+              "shared, busy host CPU can take over an hour; the server prints each stage). Run it as a long-lived "
+              "service, not per call.")
         if len(gpus) > 1:
             print("Several GPUs: pin one with CUDA_VISIBLE_DEVICES=<index> (one server per GPU).")
     elif best and float(best["compute_cap"]) >= 8.0:

@@ -113,8 +113,9 @@ Native Windows is experimental (PowerShell, same steps with `.venv\Scripts\Activ
 
 Settings that matter:
 - **`--state-dir` on a persistent disk.** The first start on a GPU compiles and tunes kernels and captures CUDA
-  graphs and saves them there; the server prints each stage. It is CPU-bound and long (an RTX 3090 on a 16-core
-  server CPU: 34 minutes first, 14 minutes after), so start it once and leave it running.
+  graphs and saves them there; the server prints each stage. On an RTX 6000 Ada that takes about 3 minutes the first
+  time and about 1 minute after. It is CPU-bound: a rented GPU on a shared, busy host CPU took over an hour, so use
+  a machine with its own CPU cores, start the server once and leave it running.
 - **One long-lived server, not one per call.** Start it once (systemd, a Windows service, a container, or a terminal
   left open) and point the code at `MICA_URL`.
 - **Longest input follows GPU memory:** about 32k tokens on 24 GB, 27k on 16 GB, 12k on 12 GB and 6k on 8 GB. The

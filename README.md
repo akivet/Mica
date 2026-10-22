@@ -100,9 +100,10 @@ Linux commands above in WSL2.
 
 INT8 runs on compute capability 8.0 and newer (RTX 30/40/50 series, RTX A-series and Ada workstation cards, L4, L40S,
 A100, H100, H200, B200); other GPUs fall back to bfloat16 by themselves. The first start compiles and tunes kernels and
-captures CUDA graphs, printing each stage; compiling is CPU-bound and slow. On an RTX 3090 with a 16-core server CPU
-it took 34 minutes (the runtime ships that card's tuning profile; 73 without one) and later starts with the same
-`--state-dir` 14 minutes, so keep `--state-dir` on a persistent disk. The longest input is
+captures CUDA graphs, printing each stage, and saves the results in `--state-dir`. On an RTX 6000 Ada the first start
+took about 3 minutes and later starts with the same `--state-dir` about 1 minute, so keep `--state-dir` on a
+persistent disk. This work is CPU-bound: on a rented GPU whose host CPU was shared with other tenants and fully
+loaded, the first start took over an hour, so use a machine with its own CPU cores. The longest input is
 set from the GPU's memory (the GPU table lists it). For bfloat16 from the full weights, download
 `model.safetensors*`, `*.json`, `*.jinja` and `*.txt` and run with `--model weights --w8a8 off`.
 
