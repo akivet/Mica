@@ -8,8 +8,8 @@ LIB = Path(os.path.dirname(os.path.abspath(__file__))) / 'lib'
 def load():
     sys.path.insert(0, str(LIB))
     name = json.loads((LIB / 'index.json').read_text(encoding='utf-8'))['runtime']
-    # lib/ may hold native extension modules (one ABI-tagged file per Python version and platform) or .pyc; the
-    # finder picks the file that matches the running interpreter. .py is for the triton.jit kernel module only.
+    # lib/ holds the runtime as .py source (one package for every OS and Python version); older packages held native
+    # extension modules or .pyc, which the finder still picks when present.
     finder = importlib.machinery.FileFinder(str(LIB),
         (importlib.machinery.ExtensionFileLoader, list(importlib.machinery.EXTENSION_SUFFIXES)),
         (importlib.machinery.SourcelessFileLoader, ['.pyc']),
