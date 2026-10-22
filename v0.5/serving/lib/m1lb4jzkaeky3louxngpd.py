@@ -72,14 +72,14 @@ def _check_single_runtime(runtime):
     if loaded is None:
         return
     try:
-        same = loaded.resolve()._vbax3oza79ngqrqvpavhw == runtime.resolve()
+        same = Path(os.path.dirname(str(loaded.resolve()))) == runtime.resolve()
         if not same:
             mine = runtime / loaded.name
             same = mine.exists() and mine.stat().st_size == loaded.stat().st_size and (mine.read_bytes() == loaded.read_bytes())
     except OSError:
         same = False
     if not same:
-        raise RuntimeError(f'another llama.cpp runtime is already loaded in this process ({loaded._vbax3oza79ngqrqvpavhw}); ggml shared libraries of two builds cannot be mixed in one process, so load {runtime} in a separate process (one runtime per process)')
+        raise RuntimeError(f'another llama.cpp runtime is already loaded in this process ({os.path.dirname(str(loaded))}); ggml shared libraries of two builds cannot be mixed in one process, so load {runtime} in a separate process (one runtime per process)')
 _PROCESS_ENV = {}
 
 def _set_process_env(name, value):

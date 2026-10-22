@@ -79,8 +79,7 @@ git clone https://github.com/akivet/Mica && cd Mica
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r v0.5/serving/requirements.txt
 pip install --no-build-isolation causal-conv1d==1.7.0
-hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
-python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010
+python v0.5/serving/serve.py
 ```
 
 Windows (experimental), Python 3.10 to 3.13, an NVIDIA driver for CUDA 12.8, in PowerShell:
@@ -89,8 +88,7 @@ Windows (experimental), Python 3.10 to 3.13, an NVIDIA driver for CUDA 12.8, in 
 git clone https://github.com/akivet/Mica; cd Mica
 py -3.12 -m venv .venv; .venv\Scripts\Activate.ps1
 pip install -r v0.5/serving/requirements-windows.txt
-hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
-python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010
+python v0.5/serving/serve.py
 ```
 
 PyTorch's Windows builds have no FlashAttention kernel, so the Windows runtime brings its own precompiled attention
@@ -99,8 +97,8 @@ same accuracy. It has not run on a Windows PC yet: if the start line says `bfloa
 Linux commands above in WSL2.
 
 INT8 runs on compute capability 8.0 and newer (RTX 30/40/50 series, RTX A-series and Ada workstation cards, L4, L40S,
-A100, H100, H200, B200); other GPUs fall back to bfloat16 by themselves. The first start compiles and tunes kernels and
-captures CUDA graphs, printing each stage, and saves the results in `--state-dir`. On an RTX 6000 Ada the first start
+A100, H100, H200, B200); other GPUs fall back to bfloat16 by themselves. The first start downloads the INT8 weights (about
+4.9 GB) into `--state-dir` (default `~/.cache/mica_runtime`; `--model` points at weights you already have), compiles and tunes kernels, printing each stage, and saves the results there. The server answers as soon as it prints `Ready`; CUDA graphs are then captured in the background while it is idle, and requests until then run a little slower. On an RTX 6000 Ada the first start
 took about 3 minutes and later starts with the same `--state-dir` about 1 minute, so keep `--state-dir` on a
 persistent disk. This work is CPU-bound: on a rented GPU whose host CPU was shared with other tenants and fully
 loaded, the first start took over an hour, so use a machine with its own CPU cores. The longest input is
@@ -173,7 +171,7 @@ Optional per question: `"multi": true` (choice with several correct options), `"
 `"abstain_threshold": <0..1>` (any type). Inputs over 32,768 tokens and malformed requests get HTTP 400 with a message;
 nothing is truncated.
 
-`GET /health` returns `{"status": "ok", "model": ...}`.
+`GET /health` returns `{"status": "ok", "model": ...}`, plus `graphs_ready`, `graphs_queued` and `warming` while CUDA graphs are being captured. A rejected request (400) says why in `detail`.
 
 For how to write the state, the rule and the answers, and recipes for security, engineering, moderation,
 search and routing decisions, see the [prompting guide](https://huggingface.co/sky7350/Mica-v0.5-4B#prompting-guide).

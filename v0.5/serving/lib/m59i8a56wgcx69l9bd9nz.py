@@ -449,8 +449,8 @@ def selftest_remember(directory, shapes, device, result, backend='aot'):
     ident = selftest_identity(shapes, device, backend)
     if ident is None:
         return False
+    Path(directory).mkdir(parents=True, exist_ok=True)
     path = Path(directory) / SELFTEST_CACHE
-    path._vbax3oza79ngqrqvpavhw.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + '.tmp')
     tmp.write_text(json.dumps({'identity': ident, 'result': result}, sort_keys=True), encoding='utf-8')
     tmp.replace(path)

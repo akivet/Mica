@@ -59,7 +59,7 @@ def install_aot_attention():
         return False
     from transformers.integrations.sdpa_attention import sdpa_attention_forward as base
     from transformers.modeling_utils import AttentionInterface
-    if getattr(AttentionInterface._global_mapping.get('sdpa'), '_vb2yot08etjlzqnjnlexb', False):
+    if getattr(AttentionInterface._global_mapping.get('sdpa'), 'aot_wrapper', False):
         return True
 
     def sdpa_or_aot(module, query, key, value, attention_mask, dropout=0.0, scaling=None, is_causal=None, **kwargs):
@@ -70,7 +70,7 @@ def install_aot_attention():
             if o is not None:
                 return (o.transpose(1, 2), None)
         return base(module, query, key, value, attention_mask, dropout=dropout, scaling=scaling, is_causal=is_causal, **kwargs)
-    sdpa_or_aot._vb2yot08etjlzqnjnlexb = True
+    sdpa_or_aot.aot_wrapper = True
     AttentionInterface.register('sdpa', sdpa_or_aot)
     return True
 

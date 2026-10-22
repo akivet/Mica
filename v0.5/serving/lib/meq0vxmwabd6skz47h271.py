@@ -505,6 +505,12 @@ class HFJudge:
         self._tuning_keys = n
         return True
 
+    def warm_state(self):
+        _v5wz3n1fab22ol5uhwgzb, g = (self._v5wz3n1fab22ol5uhwgzb, self.fast.graph if self.fast is not None else None)
+        ready = len(_v5wz3n1fab22ol5uhwgzb.graphs) + (len(g.graphs) if g is not None else 0) + len(self.batch_graphs)
+        queued = len(self.__dict__.get('_v7o47h2cyt6c1gl8a4cof') or ()) + len(_v5wz3n1fab22ol5uhwgzb.pending) + (len(g.pending) if g is not None else 0)
+        return {'graphs_ready': ready, 'graphs_queued': queued, 'warming': queued > 0}
+
     def capture_step(self):
         _v5wz3n1fab22ol5uhwgzb, g = (self._v5wz3n1fab22ol5uhwgzb, self.fast.graph if self.fast is not None else None)
         plan = self.__dict__.setdefault('_v7o47h2cyt6c1gl8a4cof', collections.deque())
@@ -982,9 +988,9 @@ def build(a):
 
 def parser():
     ap = argparse.ArgumentParser(prog='serve')
-    ap.add_argument('--backend', choices=('hf', 'gguf'), required=True)
+    ap.add_argument('--backend', choices=('hf', 'gguf'), default='hf')
     ap.add_argument('--mode', choices=('recipe', 'plain'), default='recipe')
-    ap.add_argument('--model', required=True, help='merged HF folder (hf) or .gguf file (gguf)')
+    ap.add_argument('--model', help='merged HF folder (hf) or .gguf file (gguf); hf default: the INT8 weights, downloaded once into <state-dir>/weights')
     ap.add_argument('--tokenizer', help='HF tokenizer folder (gguf)')
     ap.add_argument('--runtime', help='folder with the llama.cpp shared library (gguf)')
     ap.add_argument('--device', default='cuda')
@@ -1003,15 +1009,45 @@ def parser():
     ap.add_argument('--prewarm-batches', choices=('off', 'on'), default='off', help='hf recipe: tune every concurrent batch shape at the first start (on) instead of at first use')
     ap.add_argument('--host', default='127.0.0.1')
     ap.add_argument('--port', type=int, default=8010)
-    ap.add_argument('--name', default='systemone')
+    ap.add_argument('--name', default=DEFAULT_NAME)
     return ap
+HF_REPO = 'sky7350/Mica-v0.5-4B'
+DEFAULT_NAME = 'mica-v0.5-4b'
+
+def preflight(a):
+    if sys.version_info < (3, 10):
+        raise SystemExit('This server needs Python 3.10 or newer (this is Python %d.%d).' % sys.version_info[:2])
+    if a.backend == 'gguf' and (not (a.model and a.tokenizer and a.runtime)):
+        raise SystemExit('--backend gguf needs --model <file.gguf>, --tokenizer <folder> and --runtime <llama.cpp build>')
+    if a.backend == 'hf' and str(a.device).startswith('cuda') and (not torch.cuda.is_available()):
+        raise SystemExit('PyTorch sees no NVIDIA GPU (torch %s, CUDA build %s). Install the CUDA build of torch as in the README (on Windows: requirements-windows.txt), or use the GGUF backend on llama.cpp for AMD, Apple or CPU.' % (torch.__version__, torch.version.cuda or 'none'))
+
+def fetch_weights(state_dir):
+    import m59i8a56wgcx69l9bd9nz as w8_runtime
+    target = Path(state_dir) / 'weights'
+    folder = target / 'int8'
+    if (folder / w8_runtime.FILE).is_file() and (folder / 'config.json').is_file():
+        return str(folder)
+    print('Downloading the INT8 weights (about 4.9 GB) from %s into %s. This happens once; later starts reuse them.' % (HF_REPO, target), flush=True)
+    from huggingface_hub import snapshot_download
+    snapshot_download(HF_REPO, allow_patterns=['int8/*'], local_dir=str(target))
+    return str(folder)
+
+def ready_message(a, report):
+    url = 'http://%s:%d/v1/systemone' % (a.host, a.port)
+    text = 'Ready: POST %s (model %s, %s).' % (url, a.name, (report.get('precision') or {}).get('precision', a.backend))
+    graphs = report.get('graphs')
+    if isinstance(graphs, dict) and graphs.get('mode') == 'background':
+        text += ' CUDA graphs are being captured in the background; until then short requests run a little slower. GET /health shows how many are done.'
+    return text
 
 def main(argv=None):
     import m9qy9tkk89d48t0lxgr4e as ts
     from http.server import ThreadingHTTPServer
     a = parser().parse_args(argv)
-    if a.backend == 'gguf' and (not (a.tokenizer and a.runtime)):
-        raise SystemExit('--backend gguf needs --tokenizer and --runtime')
+    preflight(a)
+    if a.backend == 'hf' and (not a.model):
+        a.model = fetch_weights(a.state_dir)
     if not os.environ.get('TRITON_CACHE_DIR'):
         os.environ['TRITON_CACHE_DIR'] = str(Path(a.state_dir) / 'triton')
     judge, report = build(a)
@@ -1021,8 +1057,13 @@ def main(argv=None):
     handler = ts.Handler
     if a.mode == 'recipe':
         handler = ts.desktop_handler(types.SimpleNamespace(keep_alive=True, keep_alive_timeout=15.0, keep_warm_seconds=0))
+    try:
+        server = ThreadingHTTPServer((a.host, a.port), handler)
+    except OSError as exc:
+        raise SystemExit('Cannot listen on %s:%d (%s). Another server may be using the port; pass --port.' % (a.host, a.port, exc.strerror or exc))
     print(json.dumps({'serving': f'http://{a.host}:{a.port}/v1/systemone', 'model': a.name, 'start': report}), flush=True)
-    ThreadingHTTPServer((a.host, a.port), handler).serve_forever()
+    print(ready_message(a, report), flush=True)
+    server.serve_forever()
 
 def llama_server_command(server_bin, gguf, port=18084, n_ctx=8192, slots=4):
     return [str(server_bin), '-m', str(gguf), '--port', str(port), '-c', str(n_ctx * slots), '-np', str(slots), '-ngl', '99', *DESKTOP_FLAGS]

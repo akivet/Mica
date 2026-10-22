@@ -134,13 +134,22 @@ def reasoned_input_tokens(rows, results):
         raise ValueError('Strict timing requires computed prompt token counts')
     return input_tokens(rows)
 
+def _public_reason(text, limit=300):
+    import re
+    text = re.sub('(?:[A-Za-z]:[\\\\/]|/)(?:[^\\s\\\'"/\\\\]+[\\\\/])+[^\\s\\\'"]*', '<path>', str(text or ''))
+    text = ' '.join(text.split())
+    return text[:limit]
+
 class Handler(BaseHTTPRequestHandler):
     disable_nagle_algorithm = True
     wbufsize = 1 << 16
 
     def _send(self, code, obj):
         if 'error' in obj:
+            reason = _public_reason(obj['error']) if code == 400 else None
             obj = {'error': 'Invalid request' if code == 400 else 'Request failed' if code >= 500 else 'not found'}
+            if reason:
+                obj['detail'] = reason
         elif not DEBUG_TRACE:
             obj = dict(obj)
             obj.pop('timing', None)
@@ -156,7 +165,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.rstrip('/') in ('/health', '/v1/models'):
-            return self._send(200, {'status': 'ok', 'model': MODEL_NAME})
+            body = {'status': 'ok', 'model': MODEL_NAME}
+            state = getattr(JUDGE, 'warm_state', None)
+            if callable(state):
+                try:
+                    body.update(state())
+                except Exception:
+                    pass
+            return self._send(200, body)
         self._send(404, {'error': 'not found'})
 
     def do_POST(self):
