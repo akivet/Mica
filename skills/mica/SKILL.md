@@ -103,6 +103,7 @@ INT8 setup (Linux or WSL2; Python 3.10 to 3.13):
 git clone https://github.com/akivet/Mica && cd Mica
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r v0.5/serving/requirements.txt
+pip install --no-build-isolation causal-conv1d==1.7.0
 hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
 python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010 --state-dir .mica-state
 ```
@@ -111,8 +112,9 @@ Native Windows is experimental (PowerShell, same steps with `.venv\Scripts\Activ
 `v0.5/serving/requirements-windows.txt`). If its start line says `bfloat16` or it is slow, use WSL2 instead.
 
 Settings that matter:
-- **`--state-dir` on a persistent disk.** The first start on a GPU tunes kernels and captures CUDA graphs
-  (1–2 minutes) and saves them there. Later starts reuse them.
+- **`--state-dir` on a persistent disk.** The first start on a GPU compiles and tunes kernels and captures CUDA
+  graphs and saves them there; the server prints each stage. It is CPU-bound and long (an RTX 3090 on a 16-core
+  server CPU: 34 minutes first, 14 minutes after), so start it once and leave it running.
 - **One long-lived server, not one per call.** Start it once (systemd, a Windows service, a container, or a terminal
   left open) and point the code at `MICA_URL`.
 - **Longest input follows GPU memory:** about 32k tokens on 24 GB, 27k on 16 GB, 12k on 12 GB and 6k on 8 GB. The

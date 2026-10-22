@@ -78,6 +78,7 @@ Linux (or WSL2 on Windows), CUDA 12, Python 3.10 to 3.13:
 git clone https://github.com/akivet/Mica && cd Mica
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r v0.5/serving/requirements.txt
+pip install --no-build-isolation causal-conv1d==1.7.0
 hf download sky7350/Mica-v0.5-4B --include "int8/*" --local-dir weights
 python v0.5/serving/serve.py --backend hf --model weights/int8 --name mica-v0.5-4b --port 8010
 ```
@@ -98,8 +99,10 @@ same accuracy. It has not run on a Windows PC yet: if the start line says `bfloa
 Linux commands above in WSL2.
 
 INT8 runs on compute capability 8.0 and newer (RTX 30/40/50 series, RTX A-series and Ada workstation cards, L4, L40S,
-A100, H100, H200, B200); other GPUs fall back to bfloat16 by themselves. The first start on a GPU takes one to two
-minutes (kernel tuning and CUDA graph capture, kept in `--state-dir`); later starts are shorter. The longest input is
+A100, H100, H200, B200); other GPUs fall back to bfloat16 by themselves. The first start compiles and tunes kernels and
+captures CUDA graphs, printing each stage; compiling is CPU-bound and slow. On an RTX 3090 with a 16-core server CPU
+it took 34 minutes (the runtime ships that card's tuning profile; 73 without one) and later starts with the same
+`--state-dir` 14 minutes, so keep `--state-dir` on a persistent disk. The longest input is
 set from the GPU's memory (the GPU table lists it). For bfloat16 from the full weights, download
 `model.safetensors*`, `*.json`, `*.jinja` and `*.txt` and run with `--model weights --w8a8 off`.
 

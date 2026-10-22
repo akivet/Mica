@@ -3,6 +3,9 @@ transformers==5.5.0
 safetensors>=0.5
 huggingface_hub
 flash-linear-attention==0.5.2
-causal-conv1d==1.7.0
 einops
 numpy
+# causal-conv1d is installed after this file, without build isolation (see the README)
+setuptools
+wheel
+packaging
