@@ -136,6 +136,25 @@ class QLinear(nn.Module):
         w = _vbetmnfvsyrppuql03kv3.dequant(self.qweight, self.wscale)
         return (w * self.inv_smooth[None, :] if self.inv_smooth is not None else w).to(self.out_dtype)
 
+    def rows_forward(self, x, ranges):
+        if self.w16 is not None and PRECISION['mode'] == 'bf16' or self.backend != 'aot':
+            return None
+        _vbetmnfvsyrppuql03kv3, aot = _mods()
+        shape = x.shape
+        x2 = x.reshape(-1, shape[-1])
+        r = aot.act_quant(x2.contiguous(), self.inv_smooth)
+        qx, sx = r if r is not None else _vbetmnfvsyrppuql03kv3.quant_act(x2, self.inv_smooth, 'int8')
+        outs = []
+        for lo, hi in ranges:
+            w, s = (self.qweight[lo:hi], self.wscale[lo:hi])
+            b = None if self.bias is None else self.bias[lo:hi]
+            y = aot.mm_i8(qx, sx, w, s, b, self.out_dtype)
+            if y is None:
+                y = _vbetmnfvsyrppuql03kv3.torch_int_mm(qx, w).float() * sx[:, None] * s[None, :]
+                y = (y if b is None else y + b).to(self.out_dtype)
+            outs.append(y.reshape(*shape[:-1], hi - lo))
+        return outs
+
     def forward(self, x):
         if self.w16 is not None and PRECISION['mode'] == 'bf16':
             return nn.functional.linear(x, self.w16, None if self.bias is None else self.bias.to(self.w16.dtype))
@@ -272,6 +291,15 @@ def linear_shapes(folder):
                 continue
             n, k = info['shape']
             out.add((n, k, key[:-len(leaf)] + 'bias' in head))
+    try:
+        cfg = json.loads((folder / 'config.json').read_text(encoding='utf-8'))
+        cfg = cfg.get('text_config', cfg)
+        hidden, _vae5z11bsktmjgjqwnorm = (cfg['hidden_size'], cfg['linear_num_key_heads'] * cfg['linear_key_head_dim'])
+        vd = cfg['linear_num_value_heads'] * cfg['linear_value_head_dim']
+        if (2 * _vae5z11bsktmjgjqwnorm + vd, hidden, False) in out:
+            out |= {(_vae5z11bsktmjgjqwnorm, hidden, False), (vd, hidden, False)}
+    except (OSError, KeyError, ValueError):
+        pass
     return sorted(out)
 
 def _row_rel(a, b):

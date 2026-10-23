@@ -17,6 +17,46 @@ class _vceeuht53lwl7cy30sonn:
 
 def gdn_step(attn, x, state=None, keep=True, lengths=None, valid=None):
     batch, length, _ = x.shape
+    split = None
+    if SERVE.get('qkv_split') and SERVE['conv_cl'] and (lengths is None) and (batch * length >= QKV_SPLIT_ROWS):
+        _vae5z11bsktmjgjqwnorm = attn.key_dim
+        split = split_qkv_conv(attn, x, None if state is None else state[0], keep, ((0, _vae5z11bsktmjgjqwnorm), (_vae5z11bsktmjgjqwnorm, 2 * _vae5z11bsktmjgjqwnorm), (2 * _vae5z11bsktmjgjqwnorm, 2 * _vae5z11bsktmjgjqwnorm + attn.value_dim)))
+    if split is not None:
+        (query, key, value), tail, _ = split
+        z, b, a = (attn.in_proj_z(x), attn.in_proj_b(x), attn.in_proj_a(x))
+        z = z.reshape(batch, length, -1, attn.head_v_dim)
+    else:
+        query, key, value, z, b, a, tail = _gdn_inputs(attn, x, state, keep, lengths, valid)
+    query = query.reshape(batch, length, -1, attn.head_k_dim)
+    key = key.reshape(batch, length, -1, attn.head_k_dim)
+    value = value.reshape(batch, length, -1, attn.head_v_dim)
+    return _gdn_scan(attn, query, key, value, z, b, a, tail, state, keep, valid)
+QKV_SPLIT_ROWS = 2048
+
+def split_qkv_conv(attn, x, init, keep, ranges):
+    rows = getattr(attn.in_proj_qkv, 'rows_forward', None)
+    if rows is None or attn.causal_conv1d_fn is None:
+        return None
+    parts = rows(x, ranges)
+    if parts is None:
+        return None
+    width = attn.conv_kernel_size - 1
+    weight, bias = (attn.conv1d.weight.squeeze(1), attn.conv1d.bias)
+    outs, tails = ([], [])
+    for (lo, hi), part in zip(ranges, parts):
+        cols = part.transpose(1, 2)
+        start = None if init is None else init[:, lo:hi]
+        conv = conv_channel_last(attn.causal_conv1d_fn, cols, start, weight[lo:hi], None if bias is None else bias[lo:hi], attn.activation)
+        if conv is None:
+            return None
+        outs.append(conv.transpose(1, 2))
+        if keep:
+            full = cols if start is None or cols.shape[-1] >= width else torch.cat((start, cols), -1)
+            tails.append(F.pad(full, (width - full.shape[-1], 0)) if full.shape[-1] < width else full[..., -width:])
+    return (outs, torch.cat(tails, 1) if keep else None, parts)
+
+def _gdn_inputs(attn, x, state, keep, lengths, valid):
+    batch, length, _ = x.shape
     mixed, z, b, a = gdn_projections(attn, x)
     mixed = mixed.transpose(1, 2)
     z = z.reshape(batch, length, -1, attn.head_v_dim)
@@ -45,9 +85,10 @@ def gdn_step(attn, x, state=None, keep=True, lengths=None, valid=None):
         conv = F.silu(attn.conv1d(full)[:, :, :full.shape[-1]])
     mixed = conv[..., -length:].transpose(1, 2)
     query, key, value = torch.split(mixed, [attn.key_dim, attn.key_dim, attn.value_dim], dim=-1)
-    query = query.reshape(batch, length, -1, attn.head_k_dim)
-    key = key.reshape(batch, length, -1, attn.head_k_dim)
-    value = value.reshape(batch, length, -1, attn.head_v_dim)
+    return (query, key, value, z, b, a, tail)
+
+def _gdn_scan(attn, query, key, value, z, b, a, tail, state, keep, valid):
+    batch, length = query.shape[:2]
     initial = None if state is None else state[1]
     kernel = SERVE.get('gdn_kernel') or (gdn_kernel_options(attn) if FUSION['gdn'] else None)
     if kernel is not None and kernel.get('gate'):

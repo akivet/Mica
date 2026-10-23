@@ -13,6 +13,7 @@ from torch.nn import functional as F
 pass
 import m8rhab841mmga1gnl3mp8 as fb
 from m7ml5d1vtymnzohdbris7 import layer_step, gdn_step, SERVE, conv_channel_last
+import m7ml5d1vtymnzohdbris7 as fork_mod
 CUT = 16
 W_MAX = 512
 S_MAX = 32768
@@ -29,6 +30,17 @@ def proj_rows(linear, x, lo, hi=None):
     w, bias = (linear.weight, linear.bias)
     return F.linear(x, w[lo:hi], None if bias is None else bias[lo:hi])
 
+class _vhcgdcwza58dy8yb290da:
+
+    def __init__(self, parts):
+        self.parts = parts
+
+    def __getitem__(self, index):
+        return torch.cat([p[index] for p in self.parts], -1)
+
+    def index_select(self, dim, index):
+        return torch.cat([p.index_select(dim, index) for p in self.parts], -1)
+
 def repeat_keys(key, value):
     rep = value.shape[2] // key.shape[2]
     return key.repeat_interleave(rep, 2) if rep > 1 else key
@@ -39,6 +51,18 @@ def scan_inputs(layer, h, init=None):
     width = a.conv_kernel_size - 1
     x = layer.input_layernorm(h)
     _vae5z11bsktmjgjqwnorm = a.key_dim
+    split = None
+    if SERVE.get('qkv_split') and SERVE['conv_cl'] and (batch * length >= fork_mod.QKV_SPLIT_ROWS):
+        split = fork_mod.split_qkv_conv(a, x, None if init is None else init[0], False, ((_vae5z11bsktmjgjqwnorm, 2 * _vae5z11bsktmjgjqwnorm), (2 * _vae5z11bsktmjgjqwnorm, 2 * _vae5z11bsktmjgjqwnorm + a.value_dim)))
+    if split is not None:
+        (key, value), _, raw = split
+        key = key.reshape(batch, length, -1, a.head_k_dim)
+        value = value.reshape(batch, length, -1, a.head_v_dim)
+        if a.num_v_heads // a.num_k_heads > 1 and (not (SERVE.get('gdn_kernel') or {}).get('gva')):
+            key = key.repeat_interleave(a.num_v_heads // a.num_k_heads, 2)
+        beta = a.in_proj_b(x).sigmoid()
+        g = -a.A_log.float().exp() * F.softplus(a.in_proj_a(x).float() + a.dt_bias)
+        return (x, _vhcgdcwza58dy8yb290da(raw), key, value, g, beta)
     kv = proj_rows(a.in_proj_qkv, x, _vae5z11bsktmjgjqwnorm)
     raw = kv.transpose(1, 2)
     cw, cb = (a.conv1d.weight[_vae5z11bsktmjgjqwnorm:], None if a.conv1d.bias is None else a.conv1d.bias[_vae5z11bsktmjgjqwnorm:])

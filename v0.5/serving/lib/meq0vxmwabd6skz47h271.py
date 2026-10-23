@@ -43,7 +43,8 @@ def install_glue(body):
     fork.SERVE['conv_cl'] = True
     fork.SERVE['gqa_flash'] = True
     cuda = next(body.parameters()).is_cuda
-    return {'norms': fork.install_norms(body, fused=cuda), 'norms_fused': cuda, 'conv_channel_last': True, 'gqa_flash': True, 'flash_built': _vba9w2x4ebr0mfzzp69di.FLASH_BUILT, 'aot_attention': _vba9w2x4ebr0mfzzp69di.install_aot_attention(), 'coarse_autotune': _vba9w2x4ebr0mfzzp69di.coarse_autotune_keys() if next(body.parameters()).is_cuda else [], 'gdn_kernel': _set_gdn(fork, _vba9w2x4ebr0mfzzp69di, body), 'fused_mlp': _vba9w2x4ebr0mfzzp69di._v42fl7w8pieyiuhp0eilm(body) if next(body.parameters()).is_cuda else 0}
+    fork.SERVE['qkv_split'] = cuda
+    return {'norms': fork.install_norms(body, fused=cuda), 'norms_fused': cuda, 'qkv_split': cuda, 'conv_channel_last': True, 'gqa_flash': True, 'flash_built': _vba9w2x4ebr0mfzzp69di.FLASH_BUILT, 'aot_attention': _vba9w2x4ebr0mfzzp69di.install_aot_attention(), 'coarse_autotune': _vba9w2x4ebr0mfzzp69di.coarse_autotune_keys() if next(body.parameters()).is_cuda else [], 'gdn_kernel': _set_gdn(fork, _vba9w2x4ebr0mfzzp69di, body), 'fused_mlp': _vba9w2x4ebr0mfzzp69di._v42fl7w8pieyiuhp0eilm(body) if next(body.parameters()).is_cuda else 0}
 
 def _set_gdn(fork, _vba9w2x4ebr0mfzzp69di, body):
     options = _vba9w2x4ebr0mfzzp69di.gdn_serving_options(body) if next(body.parameters()).is_cuda else None
@@ -79,16 +80,47 @@ def serving_row(row):
     if mapped == ids or len(set(mapped)) != len(mapped):
         return row
     return dict(row, candidates=[dict(c, id=new) for c, new in zip(row['candidates'], mapped)])
+PAR_TOKENIZE_CHARS = 2000
+PAR_PIECE_CHARS = 700
+PAR_MAX_PIECES = 32
+
+def _cut_ok(text, j):
+    c, prev, nxt = (text[j], text[j - 1], text[j + 1])
+    return prev.isalnum() and (c == '\n' and (not nxt.isspace()) or (c == ' ' and nxt.isalpha()))
+
+def safe_cuts(text, piece=PAR_PIECE_CHARS):
+    cuts, i, n = ([], piece, len(text))
+    while i < n - piece // 2:
+        j, end = (i, min(n - 1, i + piece))
+        while j < end and (not _cut_ok(text, j)):
+            j += 1
+        if j < end:
+            cuts.append(j)
+        i = (j if j < end else end) + piece
+    return cuts
+
+def token_ids(tokenizer, text, offsets=False):
+    backend = getattr(tokenizer, 'backend_tokenizer', None)
+    piece = max(PAR_PIECE_CHARS, len(text) // PAR_MAX_PIECES)
+    cuts = safe_cuts(text, piece) if backend is not None and len(text) > PAR_TOKENIZE_CHARS else []
+    if not cuts:
+        enc = tokenizer(text, add_special_tokens=False, return_offsets_mapping=offsets)
+        return (enc['input_ids'], [e for _, e in enc['offset_mapping']] if offsets else None)
+    bounds = [0] + cuts + [len(text)]
+    encs = backend.encode_batch([text[a:b] for a, b in zip(bounds, bounds[1:])], add_special_tokens=False)
+    ids = [t for e in encs for t in e.ids]
+    ends = [a + end for a, e in zip(bounds, encs) for _, end in e.offsets] if offsets else None
+    return (ids, ends)
 
 def encode(tokenizer, row):
     from m6lir2n4n221f2rp5z93i import escape_special, prompt_for
     text = prompt_for(row, tokenizer)
-    enc = tokenizer(text, add_special_tokens=False, return_offsets_mapping=True)
+    ids, ends = token_ids(tokenizer, text, offsets=True)
     state = row['state'] if isinstance(row['state'], str) else json.dumps(row['state'], ensure_ascii=False)
     start = text.index('<state>\n') + len('<state>\n')
     char = start + len(escape_special(state)) + len('\n</state>\n')
-    boundary = next((i for i, (_, e) in enumerate(enc['offset_mapping']) if e > char), None)
-    return (enc['input_ids'], boundary)
+    boundary = next((i for i, e in enumerate(ends) if e > char), None)
+    return (ids, boundary)
 
 def encode_shared(tokenizer, rows):
     from m6lir2n4n221f2rp5z93i import escape_special, prompt_for
@@ -100,7 +132,7 @@ def encode_shared(tokenizer, rows):
     cut = start + len('<state>\n') + len(escape_special(state)) + len('\n</state>\n')
     if any((t[:cut] != texts[0][:cut] for t in texts[1:])):
         return None
-    head = tokenizer(texts[0][:cut], add_special_tokens=False)['input_ids']
+    head = token_ids(tokenizer, texts[0][:cut])[0]
     whole, boundary = encode(tokenizer, rows[0])
     if boundary != len(head) or head + tokenizer(texts[0][cut:], add_special_tokens=False)['input_ids'] != whole:
         return None
