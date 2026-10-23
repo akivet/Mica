@@ -98,10 +98,7 @@ Linux commands above in WSL2.
 
 INT8 runs on compute capability 8.0 and newer (RTX 30/40/50 series, RTX A-series and Ada workstation cards, L4, L40S,
 A100, H100, H200, B200); other GPUs fall back to bfloat16 by themselves. The first start downloads the INT8 weights (about
-4.9 GB) into `--state-dir` (default `~/.cache/mica_runtime`; `--model` points at weights you already have), compiles and tunes kernels, printing each stage, and saves the results there. The server answers as soon as it prints `Ready`; CUDA graphs are then captured in the background while it is idle, and requests until then run a little slower. On an RTX 6000 Ada the first start
-took about 3 minutes and later starts with the same `--state-dir` about 1 minute, so keep `--state-dir` on a
-persistent disk. This work is CPU-bound: on a rented GPU whose host CPU was shared with other tenants and fully
-loaded, the first start took over an hour, so use a machine with its own CPU cores. The longest input is
+4.9 GB) into `--state-dir` (default `~/.cache/mica_runtime`; `--model` points at weights you already have), loads the kernel settings shipped for common GPUs (`--kernel-tune pinned`, the default; `full` tunes every kernel on this GPU instead), printing each stage, and saves its state there. The server answers as soon as it prints `Ready`; CUDA graphs are then captured in the background while it is idle, and until they are ready a request can wait up to about 0.7 s. On a GPU without shipped settings it starts with the closest GPU's settings and, after 30 s idle, tunes one kernel at a time for this GPU and saves the result. On an RTX 6000 Ada the first start took 26 s after the download and later starts with the same `--state-dir` 14 s, so keep `--state-dir` on a persistent disk. Kernel compilation is CPU-bound, so a host whose CPU is shared and fully loaded starts much more slowly. The longest input is
 set from the GPU's memory (the GPU table lists it). For bfloat16 from the full weights, download
 `model.safetensors*`, `*.json`, `*.jinja` and `*.txt` and run with `--model weights --w8a8 off`.
 
@@ -168,7 +165,7 @@ The values show the response shape only.
 | `score` | `["lowest level", ..., "highest level"]`, 2–255 levels | `level`, `expected_level`, `probabilities` |
 
 Optional per question: `"multi": true` (choice with several correct options), `"allow_cannot_grade": true` (score),
-`"abstain_threshold": <0..1>` (any type). Inputs over 32,768 tokens and malformed requests get HTTP 400 with a message;
+`"abstain_threshold": <0..1>` (any type). Questions in one request share a single pass over the state; on an RTX 6000 Ada a 1k-token state with 4 questions takes about 70 ms. Inputs over 32,768 tokens and malformed requests get HTTP 400 with a message;
 nothing is truncated.
 
 `GET /health` returns `{"status": "ok", "model": ...}`, plus `graphs_ready`, `graphs_queued` and `warming` while CUDA graphs are being captured. A rejected request (400) says why in `detail`.
