@@ -236,7 +236,7 @@ def _verified(report, handle, device, backend):
             return (False, ('kernel load: %s: %s' % (type(exc).__name__, exc))[:300])
         aot.ATTN['enabled'] = bool(test.get('attn', {}).get('ok'))
     return (True, report['reason'])
-SELFTEST_ROWS = (3, 48, 200)
+SELFTEST_ROWS = (3, 48, 200, 608, 1500)
 SELFTEST_TOL = 1.05
 _v6n9tatg1ke1u6s9gtljd = 20261022
 SELFTEST_TIMEOUT = 300

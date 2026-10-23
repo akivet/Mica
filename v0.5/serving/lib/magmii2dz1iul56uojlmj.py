@@ -43,6 +43,7 @@ def fla_state_lean(fn, key, value, g, beta, init):
     used = dict(o=0, lean=0)
     if callable(orig_o) and callable(orig_h) and lean_available():
         raise ImportError('unavailable')
+        key = _v9kg568rycyvi6eqg5hqi().repeat_keys(key, value)
 
         def skip_o(*args, **kw):
             used['o'] += 1

@@ -49,7 +49,7 @@ def gdn_step(attn, x, state=None, keep=True, lengths=None, valid=None):
     key = key.reshape(batch, length, -1, attn.head_k_dim)
     value = value.reshape(batch, length, -1, attn.head_v_dim)
     initial = None if state is None else state[1]
-    kernel = gdn_kernel_options(attn) if FUSION['gdn'] else None
+    kernel = SERVE.get('gdn_kernel') or (gdn_kernel_options(attn) if FUSION['gdn'] else None)
     if kernel is not None and kernel.get('gate'):
         g, beta, extra = (a, b, dict(kernel['gate'], A_log=attn.A_log, dt_bias=attn.dt_bias))
     else:
@@ -93,7 +93,16 @@ def rms_norm_lean(weight1, eps, x):
         return y.mul_(weight1)
     return torch.mul(y, weight1, out=torch.empty_like(x))
 
-def install_norms(body):
+def rms_norm_fused(weight, weight1, eps, x):
+    if x.is_cuda and x.stride(-1) == 1:
+        import mdil3n8lo2da74g7xhdco as ffk
+        try:
+            return ffk.rms_norm(x, weight, eps)
+        except (ValueError, RuntimeError):
+            pass
+    return rms_norm_lean(weight1, eps, x)
+
+def install_norms(body, fused=False):
     import functools
     n = 0
     for m in body.modules():
@@ -101,7 +110,10 @@ def install_norms(body):
         if not name.endswith('RMSNorm') or 'Gated' in name or (not hasattr(m, 'eps')):
             continue
         w1 = (1.0 + m.weight.detach().float()).contiguous()
-        m.forward = functools.partial(rms_norm_lean, w1, float(m.eps))
+        if fused:
+            m.forward = functools.partial(rms_norm_fused, m.weight.detach().contiguous(), w1, float(m.eps))
+        else:
+            m.forward = functools.partial(rms_norm_lean, w1, float(m.eps))
         n += 1
     return n
 FUSION = dict(mlp=False, gdn=False, gdn_proj=False)

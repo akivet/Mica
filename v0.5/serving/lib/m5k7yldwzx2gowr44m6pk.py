@@ -29,6 +29,10 @@ def proj_rows(linear, x, lo, hi=None):
     w, bias = (linear.weight, linear.bias)
     return F.linear(x, w[lo:hi], None if bias is None else bias[lo:hi])
 
+def repeat_keys(key, value):
+    rep = value.shape[2] // key.shape[2]
+    return key.repeat_interleave(rep, 2) if rep > 1 else key
+
 def scan_inputs(layer, h, init=None):
     a = layer.linear_attn
     batch, length, _ = h.shape
@@ -51,7 +55,7 @@ def scan_inputs(layer, h, init=None):
     key, value = conv[..., -length:].transpose(1, 2).split((_vae5z11bsktmjgjqwnorm, a.value_dim), -1)
     key = key.reshape(batch, length, -1, a.head_k_dim)
     value = value.reshape(batch, length, -1, a.head_v_dim)
-    if a.num_v_heads // a.num_k_heads > 1:
+    if a.num_v_heads // a.num_k_heads > 1 and (not (SERVE.get('gdn_kernel') or {}).get('gva')):
         key = key.repeat_interleave(a.num_v_heads // a.num_k_heads, 2)
     beta = a.in_proj_b(x).sigmoid()
     g = -a.A_log.float().exp() * F.softplus(a.in_proj_a(x).float() + a.dt_bias)

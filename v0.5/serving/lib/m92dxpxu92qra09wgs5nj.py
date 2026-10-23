@@ -90,13 +90,13 @@ def capture(device):
     import torch
     if torch.device(device).type != 'cuda':
         return None
-    tuners = {name: tuner for name, tuner in _tuners().items() if tuner.cache}
+    tuners = {name: tuner for name, tuner in _tuners().items() if any((key not in getattr(tuner, '_borrowed', ()) for key in tuner.cache))}
     if not tuners:
         return None
     _refuse_always()
     kernels = {}
     for identifier, tuner in sorted(tuners.items()):
-        entries = [dict(key=_key(key), config=_config(config)) for key, config in tuner.cache.items()]
+        entries = [dict(key=_key(key), config=_config(config)) for key, config in tuner.cache.items() if key not in getattr(tuner, '_borrowed', ())]
         entries.sort(key=lambda entry: _signature(entry['key']))
         kernels[identifier] = dict(binding=_binding(identifier, tuner), entries=entries)
     return dict(version=1, runtime=_runtime_identity(device), kernels=kernels)
@@ -148,3 +148,79 @@ def restore(state, device):
         pending.append((tuner, restored))
     for tuner, restored in pending:
         tuner.cache.update(restored)
+
+def _rank(state, device):
+    import torch
+    gpu = torch.cuda.get_device_properties(torch.device(device))
+    saved = ((state or {}).get('runtime') or {}).get('gpu') or {}
+    if saved.get('name') == gpu.name and saved.get('multiprocessors') == gpu.multi_processor_count:
+        return 0
+    return 1 if saved.get('capability') == [gpu.major, gpu.minor] else 2
+
+def _run_key(tuner, args, kwargs):
+    all_args = {**dict(zip(tuner.arg_names, args)), **kwargs}
+    named = {k: v for k, v in all_args.items() if k in tuner.arg_names}
+    key = [named[k] for k in tuner.keys if k in named]
+    key += [str(v.dtype) for v in named.values() if hasattr(v, 'dtype')]
+    return tuple(key)
+
+def pin(states, device):
+    import collections
+    import torch
+    if torch.device(device).type != 'cuda' or not states:
+        return {}
+    from triton import Config
+    table, default = ({}, {})
+    for state in sorted((s for s in states if isinstance(s, dict)), key=lambda s: _rank(s, device)):
+        for identifier, saved in (state.get('kernels') or {}).items():
+            try:
+                importlib.import_module(identifier.split(':', 1)[0])
+                configs = [(tuple(e['key']), Config(**e['config'])) for e in saved['entries']]
+            except Exception:
+                continue
+            keyed, rank = (table.setdefault(identifier, {}), _rank(state, device))
+            for key, config in configs:
+                keyed.setdefault(key, (config, rank))
+            if identifier not in default and configs:
+                count = collections.Counter((_signature(_config(c)) for _, c in configs))
+                best = count.most_common(1)[0][0]
+                default[identifier] = next((c for _, c in configs if _signature(_config(c)) == best))
+    pinned = {}
+    for identifier, tuner in _tuners().items():
+        if identifier not in default or getattr(tuner, '_pinned', False):
+            continue
+        keyed, fallback, original = (table[identifier], default[identifier], tuner.run)
+
+        def run(*args, _tuner=tuner, _keyed=keyed, _fallback=fallback, _original=original, **kwargs):
+            if _tuner._pinned and len(_tuner.configs) > 1:
+                key = _run_key(_tuner, args, kwargs)
+                if key not in _tuner.cache:
+                    config, rank = _keyed.get(key, (_fallback, None))
+                    _tuner.cache[key] = config
+                    if rank != 0:
+                        _tuner._borrowed.add(key)
+                    try:
+                        return _original(*args, **kwargs)
+                    except Exception:
+                        _tuner.cache.pop(key, None)
+                        _tuner._borrowed.discard(key)
+                        _tuner._pinned = False
+            return _original(*args, **kwargs)
+        tuner.run, tuner._pinned, tuner._borrowed = (run, True, set())
+        pinned[identifier.split(':', 1)[1]] = len(keyed)
+    return pinned
+
+def unpin_next():
+    for identifier, tuner in sorted(_tuners().items()):
+        if getattr(tuner, '_pinned', False) and tuner._borrowed and (not getattr(tuner, '_tried', False)):
+            for key in tuner._borrowed:
+                tuner.cache.pop(key, None)
+            tuner._borrowed.clear()
+            tuner._pinned, tuner._tried = (False, True)
+            return identifier
+    return None
+
+def repin(identifier):
+    tuner = _tuners().get(identifier)
+    if tuner is not None and hasattr(tuner, '_borrowed'):
+        tuner._pinned = True

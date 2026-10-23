@@ -156,7 +156,7 @@ class _v83m8rh6inetzovw1w89s:
         self.H = len(self.header_ids)
         self.header = None
         self.graphs, self.pool = ({}, None)
-        self.defer, self.pending = (False, [])
+        self.defer, self.pending, self.hits = (False, [], {})
         self._grow(max(4096, self.H + (header_max or 0) + 1))
         with torch.inference_mode():
             if self.H:
@@ -358,12 +358,169 @@ class _v83m8rh6inetzovw1w89s:
         if g is None and self.defer:
             if (start, wb) not in self.pending:
                 self.pending.append((start, wb))
+            hits = getattr(self, 'hits', None)
+            if hits is not None:
+                hits[start, wb] = hits.get((start, wb), 0) + 1
             return self.run(ids[:, start:], start, width)
         g = g or self.capture(start, wb)
         g.ids[:, :width].copy_(ids[:, start:])
         g.limit.fill_(start + width)
         g.graph.replay()
         return g.out
+FORK_SIZES = (2, 4, 8)
+FORK_MAX_QUESTIONS = 8
+FORK_TAILS = (16, 32, 64, 128, 256)
+
+class _vd7pzkvjpkbqbz6iv7dbc:
+
+    def __init__(self, _v5wz3n1fab22ol5uhwgzb):
+        self._v5wz3n1fab22ol5uhwgzb, self.start = (_v5wz3n1fab22ol5uhwgzb, _v5wz3n1fab22ol5uhwgzb.H)
+        self.kmax = _v5wz3n1fab22ol5uhwgzb.H + _v5wz3n1fab22ol5uhwgzb.graph_max
+        self.prefix, self.tails = ({}, {})
+        self.defer, self.pending, self.hits = (True, [], {})
+        dev = _v5wz3n1fab22ol5uhwgzb.device
+        self.n = torch.zeros((1,), dtype=torch.long, device=dev)
+        self.kv, self.gdn = ({}, {})
+        for i, (layer, s) in enumerate(zip(_v5wz3n1fab22ol5uhwgzb.layers, _v5wz3n1fab22ol5uhwgzb.header or ())):
+            if layer.layer_type == 'full_attention':
+                k = s[0]
+                self.kv[i] = (k.new_zeros(k.shape[0], k.shape[1], self.kmax, k.shape[3]), s[1].new_zeros(k.shape[0], k.shape[1], self.kmax, s[1].shape[3]))
+            else:
+                self.gdn[i] = (torch.zeros_like(s[0]), torch.zeros_like(s[1]))
+
+    def keys(self, n, questions, tail):
+        if not self._v5wz3n1fab22ol5uhwgzb.H or n < 1 or n > self._v5wz3n1fab22ol5uhwgzb.graph_max:
+            return None
+        b = next((x for x in FORK_SIZES if x >= min(questions, FORK_SIZES[-1])), None)
+        t = next((x for x in FORK_TAILS if x >= tail), None)
+        if b is None or t is None or questions > FORK_MAX_QUESTIONS:
+            return None
+        return (-(-n // BUCKET) * BUCKET, (b, t))
+
+    def run_prefix(self, ids, sb):
+        _v5wz3n1fab22ol5uhwgzb, start = (self._v5wz3n1fab22ol5uhwgzb, self.start)
+        h = _v5wz3n1fab22ol5uhwgzb.body.embed_tokens(ids)
+        pe = _v5wz3n1fab22ol5uhwgzb.rotary(start, start + sb)
+        pos = _v5wz3n1fab22ol5uhwgzb.positions[:, start:start + sb]
+        valid = torch.arange(sb, device=ids.device)[None] < self.n
+        for i, layer in enumerate(_v5wz3n1fab22ol5uhwgzb.layers):
+            if layer.layer_type == 'full_attention':
+                h, (k, v) = prefix_attention_step(layer, h, pe, _v5wz3n1fab22ol5uhwgzb.header[i], snapshot=True)
+                self.kv[i][0][:, :, :start + sb].copy_(k)
+                self.kv[i][1][:, :, :start + sb].copy_(v)
+            else:
+                h, (conv, rec) = layer_step(layer, h, pe, pos, _v5wz3n1fab22ol5uhwgzb.header[i], None, keep=True, lengths=self.n, valid=valid)
+                self.gdn[i][0].copy_(conv)
+                self.gdn[i][1].copy_(rec)
+
+    def run_tails(self, ids, lens):
+        from transformers.models.qwen3_5.modeling_qwen3_5 import apply_rotary_pos_emb
+        _v5wz3n1fab22ol5uhwgzb, (b, t) = (self._v5wz3n1fab22ol5uhwgzb, ids.shape)
+        at = self.start + self.n
+        idx = at + torch.arange(t, device=ids.device)
+        pe = (_v5wz3n1fab22ol5uhwgzb.cos[:, idx], _v5wz3n1fab22ol5uhwgzb.sin[:, idx])
+        pos = idx[None]
+        keys = torch.arange(self.kmax + t, device=ids.device)
+        rows = torch.arange(t, device=ids.device)[:, None]
+        ok = (keys[None] < at) | (keys[None] >= self.kmax) & (keys[None] - self.kmax <= rows)
+        mask = torch.zeros(ok.shape, dtype=torch.float32, device=ids.device).masked_fill(~ok, torch.finfo(torch.float32).min)
+        mask_p, mask_t = (mask[:, :self.kmax], mask[:, self.kmax:])
+        h = _v5wz3n1fab22ol5uhwgzb.body.embed_tokens(ids)
+        for i, layer in enumerate(_v5wz3n1fab22ol5uhwgzb.layers):
+            if layer.layer_type == 'full_attention':
+                a = layer.self_attn
+                residual = h
+                x = layer.input_layernorm(h)
+                q, gate = torch.chunk(a.q_proj(x).view(b, t, -1, a.head_dim * 2), 2, dim=-1)
+                gate = gate.reshape(b, t, -1)
+                q = a.q_norm(q.view(b, t, -1, a.head_dim)).transpose(1, 2)
+                k = a.k_norm(a.k_proj(x).view(b, t, -1, a.head_dim)).transpose(1, 2)
+                v = a.v_proj(x).view(b, t, -1, a.head_dim).transpose(1, 2)
+                q, k = apply_rotary_pos_emb(q, k, *pe)
+                kvh, d = (k.shape[1], q.shape[-1])
+                rep = q.shape[1] // kvh
+                qf = q.float().reshape(b, kvh, rep, t, d)
+                kp, vp = (self.kv[i][0][0].float(), self.kv[i][1][0].float())
+                sp = torch.matmul(qf.permute(1, 0, 2, 3, 4).reshape(kvh, b * rep * t, d), kp.transpose(-1, -2))
+                sp = sp.reshape(kvh, b, rep, t, -1).permute(1, 0, 2, 3, 4) * a.scaling + mask_p
+                st = torch.matmul(qf, k.float()[:, :, None].transpose(-1, -2)) * a.scaling + mask_t
+                pr = torch.cat((sp, st), -1).softmax(-1)
+                pp = pr[..., :self.kmax].permute(1, 0, 2, 3, 4).reshape(kvh, b * rep * t, -1)
+                o = torch.matmul(pp, vp).reshape(kvh, b, rep, t, d).permute(1, 0, 2, 3, 4)
+                o = o + torch.matmul(pr[..., self.kmax:], v.float()[:, :, None])
+                o = o.reshape(b, -1, t, d).to(q.dtype)
+                o = o.transpose(1, 2).reshape(b, t, -1) * torch.sigmoid(gate)
+                h = residual + a.o_proj(o)
+                h = h + layer.mlp(layer.post_attention_layernorm(h))
+            else:
+                conv, rec = self.gdn[i]
+                state = (conv.expand(b, -1, -1), rec.expand(b, *rec.shape[1:]).contiguous())
+                h = layer_step(layer, h, pe, pos, state, None, keep=False)[0]
+        last = h.gather(1, (lens - 1).view(-1, 1, 1).expand(-1, 1, h.shape[-1]))[:, 0]
+        return _v5wz3n1fab22ol5uhwgzb.bench.ro(_v5wz3n1fab22ol5uhwgzb.body.norm(last))
+
+    def _capture(self, fn):
+        _v5wz3n1fab22ol5uhwgzb = self._v5wz3n1fab22ol5uhwgzb
+        if _v5wz3n1fab22ol5uhwgzb.pool is None:
+            _v5wz3n1fab22ol5uhwgzb.pool = torch.cuda.graph_pool_handle()
+        side = torch.cuda.Stream()
+        side.wait_stream(torch.cuda.current_stream())
+        with torch.cuda.stream(side):
+            for _ in range(_v6ff1myegbtwfltdvya89):
+                fn()
+        torch.cuda.current_stream().wait_stream(side)
+        graph = torch.cuda.CUDAGraph()
+        with torch.cuda.graph(graph, pool=_v5wz3n1fab22ol5uhwgzb.pool):
+            out = fn()
+        return (graph, out)
+
+    def capture(self, kind, key):
+        dev = self._v5wz3n1fab22ol5uhwgzb.device
+        if kind == 'prefix':
+            g = _v79scs9dr4oljw1o5ga3v(torch.zeros((1, key), dtype=torch.long, device=dev), None)
+            self.n.fill_(key)
+            g.graph, _ = self._capture(lambda: self.run_prefix(g.ids, key))
+            self.prefix[key] = g
+        else:
+            b, t = key
+            g = _v79scs9dr4oljw1o5ga3v(torch.zeros((b, t), dtype=torch.long, device=dev), torch.full((b,), t, dtype=torch.long, device=dev))
+            self.n.fill_(1)
+            g.graph, g.out = self._capture(lambda: self.run_tails(g.ids, g.limit))
+            self.tails[key] = g
+        return g
+
+    def run(self, state_ids, tails):
+        keys = self.keys(len(state_ids), len(tails), max(map(len, tails))) if all(tails) else None
+        if keys is None:
+            return None
+        missing = [(kind, key) for kind, key, have in (('prefix', keys[0], self.prefix), ('tails', keys[1], self.tails)) if key not in have]
+        if missing:
+            for m in missing:
+                if m not in self.pending:
+                    self.pending.append(m)
+                self.hits[m] = self.hits.get(m, 0) + 1
+            if self.defer:
+                return None
+            for kind, key in missing:
+                self.capture(kind, key)
+        dev = self._v5wz3n1fab22ol5uhwgzb.device
+        p, tg = (self.prefix[keys[0]], self.tails[keys[1]])
+        n = len(state_ids)
+        p.ids[0, :n].copy_(torch.tensor(state_ids, device=dev))
+        self.n.fill_(n)
+        p.graph.replay()
+        width, out = (tg.ids.shape[0], [])
+        for c in range(0, len(tails), width):
+            chunk = list(tails[c:c + width])
+            rows = chunk + [chunk[0]] * (width - len(chunk))
+            x = torch.zeros(tg.ids.shape, dtype=torch.long)
+            for r, ts in enumerate(rows):
+                x[r, :len(ts)] = torch.tensor(ts)
+            tg.ids.copy_(x.to(dev, non_blocking=True))
+            tg.limit.copy_(torch.tensor([len(ts) for ts in rows]).to(dev, non_blocking=True))
+            tg.graph.replay()
+            out.append(tg.out[:len(chunk)].clone())
+        return torch.cat(out)
 
 def graphed(fn, device):
     side = torch.cuda.Stream()

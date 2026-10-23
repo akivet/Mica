@@ -23,6 +23,7 @@ def _torch_chunk():
 
 def torch_state(key, value, g, beta, initial_state=None, chunk_size=64):
     from transformers.models.qwen3_5.modeling_qwen3_5 import l2norm
+    key = _v6ur7q369jbjyz1zwxrpd.repeat_keys(key, value)
     key = l2norm(key, dim=-1, eps=1e-06)
     key, value, beta, g = [x.transpose(1, 2).contiguous().to(torch.float32) for x in (key, value, beta, g)]
     batch, heads, length, kdim = key.shape

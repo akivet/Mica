@@ -53,6 +53,66 @@ def aot_attention(q, k, v, scale):
     if not aot.ATTN['enabled']:
         return None
     return aot.attn_fwd(q, k, v, scale)
+COARSE_AUTOTUNE = (('fla.modules.l2norm', ('l2norm_fwd_kernel',), ('NB',)), ('fla.modules.fused_norm_gate', ('layer_norm_gated_fwd_kernel',), ('NB',)), ('fla.ops.utils.cumsum', ('chunk_local_cumsum_scalar_kernel', 'chunk_local_cumsum_vector_kernel'), ('B',)))
+
+def coarse_autotune_keys():
+    import importlib
+    try:
+        from triton.runtime.autotuner import Autotuner
+    except ImportError:
+        return []
+    changed = []
+    for module, kernels, drop in COARSE_AUTOTUNE:
+        try:
+            mod = importlib.import_module(module)
+        except ImportError:
+            continue
+        for name in kernels:
+            tuner = getattr(mod, name, None)
+            for _ in range(4):
+                if tuner is None or isinstance(tuner, Autotuner):
+                    break
+                tuner = getattr(tuner, 'fn', None)
+            if isinstance(tuner, Autotuner) and any((k in tuner.keys for k in drop)):
+                tuner.keys = [k for k in tuner.keys if k not in drop]
+                tuner.cache.clear()
+                changed.append(name)
+    return changed
+GVA_VERIFIED_FLA = ('0.5.2',)
+
+def gdn_serving_options(body):
+    import importlib
+    try:
+        fla = importlib.import_module('fla')
+    except ImportError:
+        return None
+    layers = [l.linear_attn for l in getattr(body, 'layers', ()) if getattr(l, 'layer_type', '') == 'linear_attention']
+    if not layers or getattr(fla, '__version__', '') not in GVA_VERIFIED_FLA:
+        return None
+    a = layers[0]
+    if a.num_v_heads % a.num_k_heads or a.num_v_heads == a.num_k_heads:
+        return None
+    return {'gva': True}
+
+def _fused_mlp(self, x):
+    import mdil3n8lo2da74g7xhdco as ffk
+    gate, up = (self.gate_proj(x), self.up_proj(x))
+    if gate.is_cuda and gate.is_contiguous() and up.is_contiguous():
+        return self.down_proj(ffk.swi_glu(gate, up))
+    return self.down_proj(F.silu(gate) * up)
+
+def _v42fl7w8pieyiuhp0eilm(body):
+    import types
+    n = 0
+    for layer in getattr(body, 'layers', ()):
+        mlp = getattr(layer, 'mlp', None)
+        if mlp is None or not all((hasattr(mlp, x) for x in ('gate_proj', 'up_proj', 'down_proj'))):
+            continue
+        if type(getattr(mlp, 'act_fn', None)).__name__ not in ('SiLU', 'SiLUActivation'):
+            continue
+        mlp.forward = types.MethodType(_fused_mlp, mlp)
+        n += 1
+    return n
 
 def install_aot_attention():
     if FLASH_BUILT:
@@ -289,7 +349,7 @@ class F1cGraph:
         self.n_len = torch.ones((1,), dtype=torch.long, device=dev)
         self.graphs, self.pool, self.max_graphs = ({}, None, int(max_graphs))
         self.cuda = dev.type == 'cuda'
-        self.defer, self.pending = (False, [])
+        self.defer, self.pending, self.hits = (False, [], {})
 
     def plan(self, ids, s, host=None):
         rt = self.rt
@@ -371,6 +431,9 @@ class F1cGraph:
             if self.defer:
                 if key not in self.pending:
                     self.pending.append(key)
+                hits = getattr(self, 'hits', None)
+                if hits is not None:
+                    hits[key] = hits.get(key, 0) + 1
                 _count('graph__vabpxxj6fxd83k3yr3p52')
                 return None
             g = self.capture(key)

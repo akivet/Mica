@@ -179,50 +179,82 @@ def preload(device=None):
     with torch.cuda.device(dev):
         torch.cuda.current_stream(dev)
         return sum((1 for k in _load_index(cc)[0]['by_key'] if _function(dev.index, cc, k)))
+_TLS = threading.local()
+
+def _prepared(dev, cc, key, fn, e):
+    cache = _TLS.__dict__.setdefault('prepared', {})
+    rec = cache.get((dev.index, cc, key))
+    if rec is None:
+        slots, names = ([], [])
+        for p in e['params']:
+            if p['type'].startswith('*'):
+                slots.append(ctypes.c_uint64(0))
+            elif p['type'] == 'i32':
+                slots.append(ctypes.c_int32(0))
+            else:
+                return None
+            names.append((p['name'], p['type'] == 'i32'))
+        scratch = [h for h in e['hidden'] if h.get('size', 0) > 0]
+        hidden = [ctypes.c_uint64(0) for _ in e['hidden']]
+        params = (ctypes.c_void_p * (len(slots) + len(hidden)))(*[ctypes.addressof(v) for v in slots + hidden])
+        rec = (slots, names, hidden, scratch, params, 32 * e['num_warps'], e['shared'], tuple(e['div16']), tuple(e['expect'].items()))
+        cache[dev.index, cc, key] = rec
+    return rec
+
+def _stream(dev):
+    try:
+        return torch._C._cuda_getCurrentRawStream(dev.index)
+    except (AttributeError, RuntimeError):
+        return torch.cuda.current_stream(dev).cuda_stream
 
 def _launch(dev, cc, key, args, grid):
     hit = _function(dev.index, cc, key)
     if not hit:
         return _miss('no_cubin' if hit is None else 'shared_mem')
     fn, e, _ = hit
-    for name in e['div16']:
-        if int(args[name]) % 16:
+    rec = _prepared(dev, cc, key, fn, e)
+    if rec is None:
+        return _miss('param_type')
+    slots, names, hidden, scratch, params, block, shared, div16, expect = rec
+    for name in div16:
+        if args[name] % 16:
             return _miss(f'div16:{name}')
-    for name, v in e['expect'].items():
-        if int(args[name]) != v:
+    for name, v in expect:
+        if args[name] != v:
             return _miss(f'expect:{name}')
-    vals = []
-    for p in e['params']:
-        v = int(args[p['name']])
-        if p['type'].startswith('*'):
-            vals.append(ctypes.c_uint64(v))
-        elif p['type'] == 'i32':
-            if not -I32 <= v < I32:
-                return _miss('i32_range')
-            vals.append(ctypes.c_int32(v))
-        else:
-            return _miss(f"param_type:{p['type']}")
+    for slot, (name, is_i32) in zip(slots, names):
+        v = args[name]
+        if is_i32 and (not -I32 <= v < I32):
+            return _miss('i32_range')
+        slot.value = v
     keep = []
-    for h in e['hidden']:
-        ptr = 0
-        if h.get('size', 0) > 0:
-            t = torch.empty(grid * h['size'] + h.get('align', 1), dtype=torch.uint8, device=dev)
-            keep.append(t)
-            ptr = t.data_ptr()
-            ptr += -ptr % max(1, h.get('align', 1))
-        vals.append(ctypes.c_uint64(ptr))
+    if scratch:
+        for slot, h in zip(hidden, e['hidden']):
+            ptr = 0
+            if h.get('size', 0) > 0:
+                t = torch.empty(grid * h['size'] + h.get('align', 1), dtype=torch.uint8, device=dev)
+                keep.append(t)
+                ptr = t.data_ptr()
+                ptr += -ptr % max(1, h.get('align', 1))
+            slot.value = ptr
     if grid <= 0:
         return True
-    params = (ctypes.c_void_p * len(vals))(*[ctypes.addressof(v) for v in vals])
-    stream = torch.cuda.current_stream(dev).cuda_stream
     drv = _driver()
-    ctx = ctypes.c_void_p()
-    drv.cuCtxGetCurrent(ctypes.byref(ctx))
-    if not ctx.value:
-        _ensure_ctx(dev.index)
-    drv.check(drv.cuLaunchKernel(fn, grid, 1, 1, 32 * e['num_warps'], 1, 1, e['shared'], ctypes.c_void_p(stream), params, None), f'cuLaunchKernel {key}')
+    if not getattr(_TLS, 'ctx_ok', False):
+        ctx = ctypes.c_void_p()
+        drv.cuCtxGetCurrent(ctypes.byref(ctx))
+        if not ctx.value:
+            _ensure_ctx(dev.index)
+        _TLS.ctx_ok = True
+    drv.check(drv.cuLaunchKernel(fn, grid, 1, 1, block, 1, 1, shared, _stream(dev), params, None), f'cuLaunchKernel {key}')
     STATS['launch'] += 1
     return True
+
+def _on(dev, call):
+    if dev.index is None or torch.cuda.current_device() == dev.index:
+        return call()
+    with torch.cuda.device(dev):
+        return call()
 
 def _aligned(*ts):
     return all((t.data_ptr() % 16 == 0 for t in ts))
@@ -247,9 +279,9 @@ def act_quant(x, inv_smooth=None):
         return _miss('align')
     key = f'act|{DT[x.dtype]}|K{k}|inv{int(inv_smooth is not None)}'
     args = dict(X=x.data_ptr(), INV=inv.data_ptr(), Q=q.data_ptr(), S=s.data_ptr(), K=k, s_xm=x.stride(0), s_qm=q.stride(0))
-    with torch.cuda.device(x.device):
-        ok = _launch(x.device, cc, key, args, m)
+    ok = _on(x.device, lambda: _launch(x.device, cc, key, args, m))
     return (q, s) if ok else None
+GEMM_CLASSES = ((128, 's'), (384, 'm'), (1024, 'n'))
 
 def mm_i8(qx, sx, qw, sw, bias=None, out_dtype=torch.bfloat16):
     if qx.dim() != 2 or qw.dim() != 2 or qx.dtype != torch.int8 or (qw.dtype != torch.int8) or (out_dtype not in DT):
@@ -275,14 +307,16 @@ def mm_i8(qx, sx, qw, sw, bias=None, out_dtype=torch.bfloat16):
     index = _load_index(cc)[0]['by_key']
     base = f'mm|N{n}|K{k}|bias{int(bias is not None)}|{DT[out_dtype]}|m16'
     key = base + '1' if m % 16 == 0 and base + '1' in index else base + '0'
+    ckey = key + '|c' + next((c for hi, c in GEMM_CLASSES if m <= hi), 'l')
+    if ckey in index:
+        key = ckey
     e = index.get(key)
     if e is None:
         return _miss('no_cubin')
     bm, bn = (e['constexprs']['BM'], e['constexprs']['BN'])
     grid = -(-m // bm) * -(-n // bn)
     args = dict(A=qx.data_ptr(), B=qw.data_ptr(), SA=sx.data_ptr(), SB=sw.data_ptr(), BIAS=b.data_ptr(), C=out.data_ptr(), M=m, N=n, K=k, s_am=qx.stride(0), s_bn=qw.stride(0), s_cm=out.stride(0))
-    with torch.cuda.device(qx.device):
-        ok = _launch(qx.device, cc, key, args, grid)
+    ok = _on(qx.device, lambda: _launch(qx.device, cc, key, args, grid))
     return out if ok else None
 ATTN = {'enabled': False}
 ATTN_SMALL = 32
@@ -326,6 +360,5 @@ def attn_fwd(q, k, v, scale):
         return _miss('align')
     args = dict(Q=q.data_ptr(), K=k.data_ptr(), V=v.data_ptr(), O=o.data_ptr(), n_q=n, n_k=keys, s_qb=q.stride(0), s_qh=q.stride(1), s_qm=q.stride(2), s_kb=k.stride(0), s_kh=k.stride(1), s_kn=k.stride(2), s_vb=v.stride(0), s_vh=v.stride(1), s_vn=v.stride(2), s_ob=o.stride(0), s_oh=o.stride(1), s_om=o.stride(2))
     grid = -(-n // e['constexprs']['BM']) * b * hq
-    with torch.cuda.device(q.device):
-        ok = _launch(q.device, cc, key, args, grid)
+    ok = _on(q.device, lambda: _launch(q.device, cc, key, args, grid))
     return o if ok else None

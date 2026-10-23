@@ -23,6 +23,10 @@ BATCH_GRAPH_SIZES = (16, 8)
 BATCH_GRAPH_TOKENS = 4096
 FAST_GRAPH_WINDOWS = (256, 512)
 FAST_GRAPH_MAX_WINDOW = 1024
+CAPTURE_IDLE_S = 0.25
+HOT_BUCKET_HITS = 2
+TUNE_IDLE_S = 30.0
+HOT_INTERVAL_S = 2.0
 _ENCODE_LOCK = threading.Lock()
 DESKTOP_FLAGS = ('--cache-ram', '0', '--no-cache-idle-slots', '--ctx-checkpoints', '0', '--sleep-idle-seconds', '-1')
 
@@ -38,7 +42,21 @@ def install_glue(body):
     import m4042euhfp7ynv7osi045 as _vba9w2x4ebr0mfzzp69di
     fork.SERVE['conv_cl'] = True
     fork.SERVE['gqa_flash'] = True
-    return {'norms': fork.install_norms(body), 'conv_channel_last': True, 'gqa_flash': True, 'flash_built': _vba9w2x4ebr0mfzzp69di.FLASH_BUILT, 'aot_attention': _vba9w2x4ebr0mfzzp69di.install_aot_attention()}
+    cuda = next(body.parameters()).is_cuda
+    return {'norms': fork.install_norms(body, fused=cuda), 'norms_fused': cuda, 'conv_channel_last': True, 'gqa_flash': True, 'flash_built': _vba9w2x4ebr0mfzzp69di.FLASH_BUILT, 'aot_attention': _vba9w2x4ebr0mfzzp69di.install_aot_attention(), 'coarse_autotune': _vba9w2x4ebr0mfzzp69di.coarse_autotune_keys() if next(body.parameters()).is_cuda else [], 'gdn_kernel': _set_gdn(fork, _vba9w2x4ebr0mfzzp69di, body), 'fused_mlp': _vba9w2x4ebr0mfzzp69di._v42fl7w8pieyiuhp0eilm(body) if next(body.parameters()).is_cuda else 0}
+
+def _set_gdn(fork, _vba9w2x4ebr0mfzzp69di, body):
+    options = _vba9w2x4ebr0mfzzp69di.gdn_serving_options(body) if next(body.parameters()).is_cuda else None
+    fork.SERVE['gdn_kernel'] = options
+    return options
+
+def fb_sizes():
+    import m8rhab841mmga1gnl3mp8 as fb
+    return fb.FORK_SIZES
+
+def fb_tails():
+    import m8rhab841mmga1gnl3mp8 as fb
+    return fb.FORK_TAILS
 
 def _labels():
     from m6lir2n4n221f2rp5z93i import OPTION_LABELS
@@ -71,6 +89,22 @@ def encode(tokenizer, row):
     char = start + len(escape_special(state)) + len('\n</state>\n')
     boundary = next((i for i, (_, e) in enumerate(enc['offset_mapping']) if e > char), None)
     return (enc['input_ids'], boundary)
+
+def encode_shared(tokenizer, rows):
+    from m6lir2n4n221f2rp5z93i import escape_special, prompt_for
+    texts = [prompt_for(row, tokenizer) for row in rows]
+    state = rows[0]['state'] if isinstance(rows[0]['state'], str) else json.dumps(rows[0]['state'], ensure_ascii=False)
+    start = texts[0].find('<state>\n')
+    if start < 0:
+        return None
+    cut = start + len('<state>\n') + len(escape_special(state)) + len('\n</state>\n')
+    if any((t[:cut] != texts[0][:cut] for t in texts[1:])):
+        return None
+    head = tokenizer(texts[0][:cut], add_special_tokens=False)['input_ids']
+    whole, boundary = encode(tokenizer, rows[0])
+    if boundary != len(head) or head + tokenizer(texts[0][cut:], add_special_tokens=False)['input_ids'] != whole:
+        return None
+    return [(whole, boundary)] + [(head + tokenizer(t[cut:], add_special_tokens=False)['input_ids'], boundary) for t in texts[1:]]
 HEADER_PROBES = ('x', '\nx', '\n\nx', '\r\nx', '\rx', ' x', '\tx', '{"a": 1}', '[1]', chr(12288) + 'x', chr(8203) + 'x', '<x')
 
 def stable_header(tokenizer, header):
@@ -274,14 +308,16 @@ class HFJudge:
     def encode_request(self, rows):
         try:
             with _ENCODE_LOCK:
-                out = []
                 for row in rows:
                     if row.get('_v6gd7oavvss5c4jnyhxhc') is not None or row.get('images'):
                         raise ValueError('This release evaluates text only')
-                    ids, s = encode(self.tokenizer, serving_row(row))
-                    if len(ids) > self.max_length:
-                        raise ValueError('Input exceeds max_length; evidence was not truncated')
-                    out.append((ids, s))
+                served = [serving_row(row) for row in rows]
+                shared = None
+                if len(served) > 1 and all((r.get('state') == served[0].get('state') for r in served[1:])):
+                    shared = encode_shared(self.tokenizer, served)
+                out = shared if shared is not None else [encode(self.tokenizer, row) for row in served]
+                if any((len(ids) > self.max_length for ids, _ in out)):
+                    raise ValueError('Input exceeds max_length; evidence was not truncated')
                 return out
         except ValueError as exc:
             return exc
@@ -310,7 +346,9 @@ class HFJudge:
             if len(enc) > 1:
                 p = fork.common_prefix([e[3] for e in enc])
                 start = _v5wz3n1fab22ol5uhwgzb.H if _v5wz3n1fab22ol5uhwgzb.H and p > _v5wz3n1fab22ol5uhwgzb.H and (tuple(enc[0][3][:_v5wz3n1fab22ol5uhwgzb.H]) == _v5wz3n1fab22ol5uhwgzb.header_ids) else 0
-                if p - start >= FORK_MIN and (not (getattr(self, 'profile', None) and self.replay_cheaper(enc, True))):
+                fg = getattr(self, 'fork_graphs', None)
+                graphable = fg is not None and start == _v5wz3n1fab22ol5uhwgzb.H and (fg.keys(p - start, len(enc), max((len(e[3]) - p for e in enc))) is not None)
+                if p - start >= FORK_MIN and (graphable or not (getattr(self, 'profile', None) and self.replay_cheaper(enc, True))):
                     forks.append((p, start, enc))
                     continue
                 if p - start >= FORK_MIN:
@@ -362,6 +400,16 @@ class HFJudge:
         cap = getattr(self, 'batch_tokens', BATCH_TOKENS)
         for p, start, short in forks:
             i = short[0][0]
+            fg = getattr(self, 'fork_graphs', None)
+            if fg is not None and start == _v5wz3n1fab22ol5uhwgzb.H:
+                tails = [e[3][p:] for e in short]
+                zz = fg.run(short[0][3][start:p], tails)
+                if zz is not None:
+                    for n, (_, j, row, _, _) in enumerate(short):
+                        put(i, j, row, zz[n].float())
+                    self.routes['fork_graphed'] = self.routes.get('fork_graphed', 0) + len(short)
+                    computed[i] += p + sum(map(len, tails))
+                    continue
             order = sorted(range(len(short)), key=lambda k: len(short[k][3]) - p)
             chunks, cur = ([], [])
             for k in order:
@@ -473,6 +521,10 @@ class HFJudge:
         start = self._v5wz3n1fab22ol5uhwgzb.H
         plan = [('_v5wz3n1fab22ol5uhwgzb', (start, wb)) for wb in range(GRAPH_BUCKET, self._v5wz3n1fab22ol5uhwgzb.graph_max + 1, GRAPH_BUCKET)]
         g = self.fast.graph if self.fast is not None else None
+        fg = self.make_fork_graphs()
+        if fg is not None:
+            plan += [('fork', ('tails', (b, t))) for t in fb_tails() for b in fb_sizes()]
+            plan += [('fork', ('prefix', sb)) for sb in range(GRAPH_BUCKET, self._v5wz3n1fab22ol5uhwgzb.graph_max + 1, GRAPH_BUCKET)]
         if g is not None:
             hs = self.fast.rt.H
             plan += [('fast', ('_v9qzrgapy1ah7g1jj5alh', hs, nb, min(wb, nb))) for nb in g.buckets for wb in FAST_GRAPH_WINDOWS if nb > hs]
@@ -482,6 +534,35 @@ class HFJudge:
         self._v5wz3n1fab22ol5uhwgzb.defer = True
         self._v7o47h2cyt6c1gl8a4cof = collections.deque(plan)
         return len(plan)
+
+    def tune_step(self):
+        import m92dxpxu92qra09wgs5nj as kernel_state
+        import m9qy9tkk89d48t0lxgr4e as ts
+        if self.bench.device.type != 'cuda':
+            return False
+        identifier = kernel_state.unpin_next()
+        if identifier is None:
+            return False
+        try:
+            with torch.inference_mode():
+                ids, _ = self.encode_request(ts._v2lbiu05abgrrc954oo6t(self.tokenizer, 128, 'noul'))[0]
+                x = torch.tensor([ids], device=self.bench.device)
+                start = self._v5wz3n1fab22ol5uhwgzb.H if self._v5wz3n1fab22ol5uhwgzb.hit(x, ids) else 0
+                self._v5wz3n1fab22ol5uhwgzb.run(x[:, start:], start, len(ids) - start)
+                if self.fast is not None and self.exact_max + 64 < self.max_length:
+                    rows = ts._v2lbiu05abgrrc954oo6t(self.tokenizer, self.exact_max + 64, 'noul')
+                    ids, s = self.encode_request(rows)[0]
+                    if s:
+                        graph, self.fast.graph = (self.fast.graph, None)
+                        try:
+                            self.fast.fast(torch.tensor([ids], device=self.bench.device), s, ids, '_v9qzrgapy1ah7g1jj5alh', False)
+                        finally:
+                            self.fast.graph = graph
+        finally:
+            kernel_state.repin(identifier)
+        self._tuning_saved_at = -1000000000.0
+        self.routes['idle_tuned'] = self.routes.get('idle_tuned', 0) + 1
+        return True
 
     def save_new_tuning(self, every=60.0):
         directory = getattr(self, 'state_dir', None)
@@ -507,16 +588,43 @@ class HFJudge:
 
     def warm_state(self):
         _v5wz3n1fab22ol5uhwgzb, g = (self._v5wz3n1fab22ol5uhwgzb, self.fast.graph if self.fast is not None else None)
-        ready = len(_v5wz3n1fab22ol5uhwgzb.graphs) + (len(g.graphs) if g is not None else 0) + len(self.batch_graphs)
-        queued = len(self.__dict__.get('_v7o47h2cyt6c1gl8a4cof') or ()) + len(_v5wz3n1fab22ol5uhwgzb.pending) + (len(g.pending) if g is not None else 0)
+        fg = getattr(self, 'fork_graphs', None)
+        ready = len(_v5wz3n1fab22ol5uhwgzb.graphs) + (len(g.graphs) if g is not None else 0) + len(self.batch_graphs) + (len(fg.prefix) + len(fg.tails) if fg is not None else 0)
+        queued = len(self.__dict__.get('_v7o47h2cyt6c1gl8a4cof') or ()) + len(_v5wz3n1fab22ol5uhwgzb.pending) + (len(g.pending) if g is not None else 0) + (len(fg.pending) if fg is not None else 0)
         return {'graphs_ready': ready, 'graphs_queued': queued, 'warming': queued > 0}
 
-    def capture_step(self):
+    def hot_pending(self, min_hits=HOT_BUCKET_HITS):
         _v5wz3n1fab22ol5uhwgzb, g = (self._v5wz3n1fab22ol5uhwgzb, self.fast.graph if self.fast is not None else None)
+        for tuner in (_v5wz3n1fab22ol5uhwgzb, g, getattr(self, 'fork_graphs', None)):
+            hits = getattr(tuner, 'hits', None) or {}
+            if tuner is not None and any((hits.get(k, 0) >= min_hits for k in tuner.pending)):
+                return True
+        return False
+
+    def hottest_pending(self):
+        best = None
+        for kind, tuner in (('_v5wz3n1fab22ol5uhwgzb', self._v5wz3n1fab22ol5uhwgzb), ('fast', self.fast.graph if self.fast is not None else None), ('fork', getattr(self, 'fork_graphs', None))):
+            hits = getattr(tuner, 'hits', None) or {}
+            for key in tuner.pending if tuner is not None else ():
+                n = hits.get(key, 0)
+                if n >= HOT_BUCKET_HITS and (best is None or n > best[0]):
+                    best = (n, kind, key)
+        return None if best is None else best[1:]
+
+    def capture_step(self, hot=False):
+        _v5wz3n1fab22ol5uhwgzb, g = (self._v5wz3n1fab22ol5uhwgzb, self.fast.graph if self.fast is not None else None)
+        fg = getattr(self, 'fork_graphs', None)
         plan = self.__dict__.setdefault('_v7o47h2cyt6c1gl8a4cof', collections.deque())
+        first = HFJudge.hottest_pending(self) if hot else None
         while True:
-            if _v5wz3n1fab22ol5uhwgzb.pending:
+            if first is not None:
+                kind, key = first
+                {'_v5wz3n1fab22ol5uhwgzb': _v5wz3n1fab22ol5uhwgzb, 'fast': g, 'fork': fg}[kind].pending.remove(key)
+                first = None
+            elif _v5wz3n1fab22ol5uhwgzb.pending:
                 kind, key = ('_v5wz3n1fab22ol5uhwgzb', _v5wz3n1fab22ol5uhwgzb.pending.pop(0))
+            elif fg is not None and fg.pending:
+                kind, key = ('fork', fg.pending.pop(0))
             elif g is not None and g.pending:
                 kind, key = ('fast', g.pending.pop(0))
             elif plan:
@@ -530,9 +638,11 @@ class HFJudge:
                     g.capture(key, bounds=True)
                 elif kind == 'batch' and key not in self.batch_graphs:
                     self.capture_batch(*key)
+                elif kind == 'fork' and fg is not None and (key[1] not in (fg.prefix if key[0] == 'prefix' else fg.tails)):
+                    fg.capture(*key)
                 else:
                     continue
-            self.graphs_ready = len(_v5wz3n1fab22ol5uhwgzb.graphs) + (len(g.graphs) if g is not None else 0) + len(self.batch_graphs)
+            self.graphs_ready = HFJudge.warm_state(self)['graphs_ready']
             return True
 
     def batch_shapes(self, sizes, graphs=False):
@@ -579,7 +689,26 @@ class HFJudge:
                 for b, wb in self.batch_shapes(BATCH_GRAPH_SIZES, graphs=True):
                     if (b, wb) not in self.batch_graphs:
                         self.capture_batch(b, wb)
-        return len(self._v5wz3n1fab22ol5uhwgzb.graphs) + (len(g.graphs) if g is not None else 0) + len(self.batch_graphs)
+            fg = self.make_fork_graphs()
+            if fg is not None:
+                fg.defer = False
+                for t in fb_tails():
+                    for b in fb_sizes():
+                        if (b, t) not in fg.tails:
+                            fg.capture('tails', (b, t))
+                for sb in range(GRAPH_BUCKET, self._v5wz3n1fab22ol5uhwgzb.graph_max + 1, GRAPH_BUCKET):
+                    if sb not in fg.prefix:
+                        fg.capture('prefix', sb)
+        return HFJudge.warm_state(self)['graphs_ready']
+
+    def make_fork_graphs(self):
+        if getattr(self, 'fork_graphs', None) is not None:
+            return self.fork_graphs
+        if not (self.graph and self._v5wz3n1fab22ol5uhwgzb.H and self.recipe and (getattr(self, 'memory_profile', 'standard') != 'lean')):
+            return None
+        import m8rhab841mmga1gnl3mp8 as fb
+        self.fork_graphs = fb._vd7pzkvjpkbqbz6iv7dbc(self._v5wz3n1fab22ol5uhwgzb)
+        return self.fork_graphs
 
     def calibration_run(self, kind, n, q=1):
         import random
@@ -732,13 +861,20 @@ class Batcher:
 
     def _wait(self):
         step = getattr(self._judge, 'capture_step', None)
+        hot = getattr(self._judge, 'hot_pending', None)
+        hot_done = False
         while step is not None:
+            hot_now = False
+            if hot is not None and (not hot_done) and (time.perf_counter() - self.__dict__.get('_hot_at', -1000000000.0) >= HOT_INTERVAL_S) and hot():
+                hot_done = hot_now = True
+                self._hot_at = time.perf_counter()
+            else:
+                try:
+                    return self._queue.get(timeout=CAPTURE_IDLE_S)
+                except queue.Empty:
+                    pass
             try:
-                return self._queue.get_nowait()
-            except queue.Empty:
-                pass
-            try:
-                more = step()
+                more = step(hot=True) if hot_now else step()
             except Exception as exc:
                 print(json.dumps({'graph_capture_failed': type(exc).__name__, 'detail': str(exc)[:200]}), file=sys.stderr, flush=True)
                 more = True
@@ -746,6 +882,19 @@ class Batcher:
                 if not self.__dict__.get('_graphs_logged'):
                     self._graphs_logged = True
                     print(json.dumps({'graphs_ready': getattr(self._judge, 'graphs_ready', 0)}), flush=True)
+                break
+        tune = getattr(self._judge, 'tune_step', None)
+        while tune is not None:
+            try:
+                return self._queue.get(timeout=TUNE_IDLE_S)
+            except queue.Empty:
+                pass
+            try:
+                more = tune()
+            except Exception as exc:
+                print(json.dumps({'idle_tuning_failed': type(exc).__name__}), file=sys.stderr, flush=True)
+                more = True
+            if not more:
                 break
         save = getattr(self._judge, 'save_new_tuning', None)
         if save is not None:
@@ -872,6 +1021,23 @@ def read_profile(path):
         data = f.read()
     return json.loads(zlib.decompress(data) if path.endswith('.z') else data)
 
+def pin_kernels(directory, device):
+    import m92dxpxu92qra09wgs5nj as kernel_state
+    device = torch.device(device)
+    if device.type != 'cuda' or not torch.cuda.is_available():
+        return {}
+    path = Path(directory) / KERNEL_PROFILE if directory else None
+    states = []
+    for candidate in ([str(path)] if path is not None and path.is_file() else []) + _ve2xl32kur2wbir4pc0oq():
+        try:
+            states.append(read_profile(candidate))
+        except (ValueError, OSError):
+            pass
+    try:
+        return kernel_state.pin(states, device)
+    except Exception as exc:
+        return {'failed': type(exc).__name__}
+
 def kernel_profile(judge, directory, warm, prewarm=False):
     import m92dxpxu92qra09wgs5nj as kernel_state
     device = judge.bench.device
@@ -950,6 +1116,8 @@ def build(a):
     report = {'mode': a.mode, 'backend': a.backend}
     t = time.perf_counter()
     stage('load', t)
+    if a.backend == 'hf' and recipe and (getattr(a, 'kernel_tune', 'pinned') == 'pinned'):
+        report['kernel_pins'] = pin_kernels(getattr(a, 'state_dir', None), a.device)
     if a.backend == 'hf':
         judge = HFJudge(a.model, device=a.device, max_length=a.max_length, recipe=recipe, w8a8=getattr(a, 'w8a8', 'off') if recipe else 'off', exact_max=getattr(a, 'exact_max', 0), graph_max=getattr(a, 'graph_max', 0), precision_route=recipe and getattr(a, 'precision_route', 'off') == 'on', memory_limit=int(float(getattr(a, 'memory_limit', 0) or 0) * 2 ** 30), state_dir=getattr(a, 'state_dir', None))
         judge.state_dir = a.state_dir
@@ -971,7 +1139,7 @@ def build(a):
                 report['graphs'] = judge.precapture()
             else:
                 report['graphs'] = {'mode': 'background', 'queued': judge.defer_graphs()}
-            stage('kernel warm-up (first start on this GPU tunes kernels; later starts reuse --state-dir)', t)
+            stage('kernel warm-up (kernel configs from the saved profiles; --kernel-tune full tunes them on this GPU)', t)
             report['kernels'] = kernel_profile(judge, a.state_dir, lambda: warm_up(judge), prewarm=getattr(a, 'prewarm_batches', 'off') == 'on')
         report['exact_max'], report['graph_max'] = (judge.exact_max, judge.graph_max)
         if judge.bench.device.type == 'cuda':
@@ -999,6 +1167,7 @@ def parser():
     ap.add_argument('--seqs', type=int, default=4)
     ap.add_argument('--flash-attn', type=int, default=-1)
     ap.add_argument('--w8a8', choices=('auto', 'off'), default='auto', help='hf recipe: 8-bit weights when this GPU supports them and has enough memory (auto), else bfloat16')
+    ap.add_argument('--kernel-tune', choices=('pinned', 'full'), default='pinned', help='hf recipe: FLA kernel configs from the saved/shipped profiles (pinned, no autotune wait) or Triton autotune on first use (full)')
     ap.add_argument('--route-tune', choices=('auto', 'off'), default='off', help='hf recipe: time the routes once per GPU and save the limits in --state-dir (off: defaults)')
     ap.add_argument('--precision-route', choices=('off', 'on'), default='off', help='hf recipe, opt-in: keep the bfloat16 weights too and run long inputs in bfloat16 where that is faster on this GPU')
     ap.add_argument('--memory-limit', type=float, default=0, help='hf: plan and allocate as on a card with this many GiB (0 = the whole card)')
