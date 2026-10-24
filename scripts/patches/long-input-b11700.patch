@@ -1,0 +1,240 @@
+--- a/include/llama.h
++++ b/include/llama.h
+@@ -1113,6 +1113,11 @@
+     // If set to true, the model will only attend to the past tokens
+     LLAMA_API void llama_set_causal_attn(struct llama_context * ctx, bool causal_attn);
+ 
++    // Mica-Fast context prefill (qwen35): while cut > 0, the layers from `cut` on read the hidden state entering layer
++    // `cut` on every row of later decodes and only write what later rows read from them (attention K/V, recurrent
++    // state). 0 turns it off. Logits of such decodes are not meaningful.
++    LLAMA_API void llama_set_upper_stale(struct llama_context * ctx, int32_t cut);
++
+     // Returns whether the context is currently using causal attention
+     LLAMA_API bool llama_get_causal_attn(const struct llama_context * ctx);
+ 
+--- a/src/llama-context.cpp
++++ b/src/llama-context.cpp
+@@ -207,6 +207,7 @@
+     cparams.offload_kqv             = params.offload_kqv;
+     cparams.no_perf                 = params.no_perf;
+     cparams.warmup                  = false;
++    cparams.upper_stale_cut         = 0;
+ 
+     // +1: id n_layer() taps the output of the last layer ("input" of the head)
+     cparams.embeddings_layer_inp.resize(hparams.n_layer() + 1, false);
+@@ -1371,6 +1372,13 @@
+     //sched_need_reserve = true;
+ }
+ 
++void llama_context::set_upper_stale(int32_t cut) {
++    LLAMA_LOG_DEBUG("%s: cut = %d\n", __func__, cut);
++
++    // the graph differs, so a change rebuilds it (allow_reuse compares the cut)
++    cparams.upper_stale_cut = cut > 0 ? cut : 0;
++}
++
+ bool llama_context::get_causal_attn() const {
+     return cparams.causal_attn;
+ }
+@@ -4203,6 +4211,10 @@
+     ctx->set_causal_attn(causal_attn);
+ }
+ 
++void llama_set_upper_stale(llama_context * ctx, int32_t cut) {
++    ctx->set_upper_stale(cut);
++}
++
+ bool llama_get_causal_attn(const llama_context * ctx) {
+     return ctx->get_causal_attn();
+ }
+--- a/src/llama-context.h
++++ b/src/llama-context.h
+@@ -122,6 +122,7 @@
+     void set_embeddings_layer_inp(uint32_t lid, bool enable);
+     void set_nextn_layer_offset(int32_t offset);
+     void set_causal_attn(bool value);
++    void set_upper_stale(int32_t cut);
+     void set_warmup(bool value);
+ 
+     void set_adapters_lora(llama_adapter_lora ** adapters, size_t n_adapters, float * scales);
+--- a/src/llama-cparams.h
++++ b/src/llama-cparams.h
+@@ -55,6 +55,8 @@
+     bool pipeline_parallel;
+     bool training;           // set by llama_opt_init()
+ 
++    int32_t upper_stale_cut; // llama_set_upper_stale, 0 = off
++
+     size_t moe_cache_size;
+ 
+     std::vector<bool> embeddings_layer_inp; // [n_layer()] extract input embeddings for layer
+--- a/src/llama-graph.h
++++ b/src/llama-graph.h
+@@ -898,6 +898,7 @@
+             cparams.embeddings_nextn        == other.cparams.embeddings_nextn        &&
+             cparams.embeddings_nextn_masked == other.cparams.embeddings_nextn_masked &&
+             cparams.causal_attn             == other.cparams.causal_attn             &&
++            cparams.upper_stale_cut         == other.cparams.upper_stale_cut         &&
+             arch  == other.arch  &&
+             gtype == other.gtype &&
+             cvec  == other.cvec  &&
+--- a/src/models/models.h
++++ b/src/models/models.h
+@@ -2460,6 +2460,15 @@
+         ggml_tensor * build_layer_attn_linear(
+              llm_graph_input_rs * inp,
+                     ggml_tensor * cur,
++                            int   il,
++                           bool   stale = false);
++
++        // llama_set_upper_stale: write this layer's K/V for the rows, nothing else
++        void build_layer_attn_stale(
++        llm_graph_input_attn_kv * inp_attn,
++                    ggml_tensor * cur,
++                    ggml_tensor * inp_pos,
++                            int * sections,
+                             int   il);
+ 
+         ggml_tensor * build_layer_ffn(
+--- a/src/models/qwen35.cpp
++++ b/src/models/qwen35.cpp
+@@ -1,5 +1,6 @@
+ #include "models.h"
+ #include "llama-memory-recurrent.h"
++#include "llama-kv-cache.h"
+ 
+ void llama_model_qwen35::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS,       hparams.f_norm_rms_eps);
+@@ -155,10 +156,27 @@
+     ggml_tensor * inp_pos     = build_inp_pos();
+     ggml_tensor * inp_out_ids = build_inp_out_ids();
+ 
++    // llama_set_upper_stale: the layers from stale_cut on read the hidden state entering stale_cut (stale_h) and
++    // only write their K/V and recurrent state; the residual stream stops there
++    const int stale_cut = cparams.upper_stale_cut > 0 && cparams.upper_stale_cut < n_layer ? cparams.upper_stale_cut : n_layer;
++    ggml_tensor * stale_h = nullptr;
++
+     // MTP/NextN layers are loaded as extra decoder blocks but not executed in the main pass.
+     for (int il = 0; il < n_layer; ++il) {
+         res->t_layer_inp[il] = inpL;
+ 
++        if (il >= stale_cut) {
++            stale_h = stale_h ? stale_h : inpL;
++            cur = build_norm(stale_h, model.layers[il].attn_norm, nullptr, LLM_NORM_RMS, il);
++            cb(cur, "attn_norm_stale", il);
++            if (hparams.is_recr(il)) {
++                build_layer_attn_linear(inp->get_recr(), cur, il, true);
++            } else {
++                build_layer_attn_stale(inp->get_attn(), cur, inp_pos, sections, il);
++            }
++            continue;
++        }
++
+         ggml_tensor * inpSA = inpL;
+ 
+         cur = build_norm(inpL, model.layers[il].attn_norm, nullptr, LLM_NORM_RMS, il);
+@@ -207,6 +225,10 @@
+     }
+     cur = inpL;
+ 
++    if (stale_h && crop_before_nextn(inp_out_ids)) {
++        cur = ggml_get_rows(ctx0, cur, inp_out_ids);
++    }
++
+     cur = build_norm(cur, model.output_norm, nullptr, LLM_NORM_RMS, -1);
+ 
+     cb(cur, "h_nextn", -1);
+@@ -344,10 +366,59 @@
+     return cur;
+ }
+ 
++void llama_model_qwen35::graph::build_layer_attn_stale(
++        llm_graph_input_attn_kv * inp,
++        ggml_tensor *             cur,
++        ggml_tensor *             inp_pos,
++        int *                     sections,
++        int                       il) {
++    const int64_t n_embd_head = hparams.n_embd_head_v();
++    const auto & layer = model.layers[il];
++
++    ggml_tensor * Kcur;
++    ggml_tensor * Vcur;
++    if (!layer.wqkv && layer.wk && layer.wv && !layer.wk_b && !layer.wv_b) {
++        Kcur = build_lora_mm(layer.wk, cur, layer.wk_s);
++        Vcur = build_lora_mm(layer.wv, cur, layer.wv_s);
++    } else {
++        auto [Qcur_full, K, V] = build_qkv(layer, cur,
++                n_embd_head * 2, n_head,
++                n_embd_head,     n_head_kv,
++                n_embd_head,     n_head_kv,
++                il, false);
++        GGML_UNUSED(Qcur_full);
++        Kcur = K;
++        Vcur = V;
++    }
++
++    Kcur = ggml_reshape_3d(ctx0, Kcur, n_embd_head, n_head_kv, n_tokens);
++    Kcur = build_norm(Kcur, layer.attn_k_norm, nullptr, LLM_NORM_RMS, il);
++    Vcur = ggml_reshape_3d(ctx0, Vcur, n_embd_head, n_head_kv, n_tokens);
++
++    Kcur = ggml_rope_multi(
++            ctx0, Kcur, inp_pos, nullptr,
++            n_rot, sections, rope_type, n_ctx_orig, freq_base, freq_scale,
++            ext_factor, attn_factor, beta_fast, beta_slow
++            );
++    cb(Kcur, "Kcur_stale", il);
++    cb(Vcur, "Vcur_stale", il);
++
++    // build_attn's cache write, without the attention
++    if (inp->self_k_rot) {
++        Kcur = llama_mul_mat_hadamard(ctx0, Kcur, inp->self_k_rot);
++    }
++    if (inp->self_v_rot) {
++        Vcur = llama_mul_mat_hadamard(ctx0, Vcur, inp->self_v_rot);
++    }
++    ggml_build_forward_expand(gf, inp->mctx->cpy_k(ctx0, Kcur, inp->get_k_idxs(), il));
++    ggml_build_forward_expand(gf, inp->mctx->cpy_v(ctx0, Vcur, inp->get_v_idxs(), il));
++}
++
+ ggml_tensor * llama_model_qwen35::graph::build_layer_attn_linear(
+         llm_graph_input_rs * inp,
+         ggml_tensor *        cur,
+-        int                  il) {
++        int                  il,
++        bool                 stale) {
+     const auto * mctx_cur = inp->mctx;
+ 
+     const int64_t d_inner      = hparams.ssm_d_inner;
+@@ -362,10 +433,18 @@
+     GGML_ASSERT(ubatch.equal_seqs());
+     GGML_ASSERT(ubatch.n_tokens == n_seq_tokens * n_seqs);
+ 
+-    // Input projections
+-    auto qkvz = build_qkvz(cur, il);
+-    ggml_tensor * qkv_mixed = qkvz.first;
+-    ggml_tensor * z         = qkvz.second;
++    // Input projections (stale: the state needs no z)
++    ggml_tensor * qkv_mixed;
++    ggml_tensor * z = nullptr;
++    if (stale) {
++        qkv_mixed = build_lora_mm(model.layers[il].wqkv, cur, model.layers[il].wqkv_s);
++        qkv_mixed = ggml_reshape_3d(ctx0, qkv_mixed, qkv_mixed->ne[0], n_seq_tokens, n_seqs);
++        cb(qkv_mixed, "linear_attn_qkv_mixed", il);
++    } else {
++        auto qkvz = build_qkvz(cur, il);
++        qkv_mixed = qkvz.first;
++        z         = qkvz.second;
++    }
+ 
+     ggml_tensor * beta = build_lora_mm(model.layers[il].ssm_beta, cur, model.layers[il].ssm_beta_s);
+     beta = ggml_reshape_4d(ctx0, beta, 1, num_v_heads, n_seq_tokens, n_seqs);
+@@ -458,6 +537,9 @@
+     cb(v_conv, "v_conv_predelta", il);
+ 
+     ggml_tensor * output = build_recurrent_attn(inp, ssm_states_all, q_conv, k_conv, v_conv, gate, beta, state, il);
++    if (stale) {
++        return nullptr;   // the conv tail and the recurrent state are written; nothing reads the rows' output
++    }
+ 
+     // z: [head_dim, n_heads, n_tokens, n_seqs] -> [n_heads * n_tokens * n_seqs, head_dim]
+     ggml_tensor * z_2d = ggml_reshape_4d(ctx0, z, head_v_dim, num_v_heads, n_seq_tokens, n_seqs);

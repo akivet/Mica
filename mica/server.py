@@ -124,16 +124,19 @@ def main():
     ap.add_argument('--state-cache', choices=('on', 'off'), default='on',
                     help='keep the most recent long state on the GPU (one more sequence of --n-ctx) so a later request '
                          'with the same state, or a grown one, decodes only the new tokens')
+    ap.add_argument('--long-input', choices=('on', 'off'), default='on',
+                    help='faster long-input mode for prompts over 1k tokens (builds that support it; others run exactly)')
     ap.add_argument('--name', default='mica-v0.5-4b')
     a = ap.parse_args()
     from transformers import AutoTokenizer
     from .direct_backend import DirectJudge
     tok = AutoTokenizer.from_pretrained(a.hf)
     kw = dict(runtime_dir=a.runtime, n_ctx=a.n_ctx, n_seq_max=a.seqs, max_length=a.n_ctx, flash_attn=a.flash_attn, n_ubatch=a.n_ubatch,
-              state_cache=a.state_cache == 'on')
+              state_cache=a.state_cache == 'on', long_input=a.long_input == 'on')
     JUDGE = (DirectJudge.from_calibration(a.gguf, tok, a.calibration, **kw) if a.calibration else DirectJudge(a.gguf, tok, **kw))
     MODEL_NAME = a.name
-    print(json.dumps({'serving': f'http://{a.host}:{a.port}/v1/systemone', 'model': MODEL_NAME}), flush=True)
+    print(json.dumps({'serving': f'http://{a.host}:{a.port}/v1/systemone', 'model': MODEL_NAME,
+                      'long_input': JUDGE.long_input}), flush=True)
     ThreadingHTTPServer((a.host, a.port), Handler).serve_forever()
 
 

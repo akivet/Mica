@@ -9,7 +9,10 @@ ARG CUDA_ARCH="86;89;90"
 FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS runtime-build
 ARG CUDA_ARCH
 RUN apt-get update && apt-get install -y --no-install-recommends git cmake build-essential ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY scripts/patches /patches
+# long-input mode (llama_set_upper_stale): Mica's faster path for prompts over 1k tokens
 RUN git clone --depth 1 --branch b11700 https://github.com/ggml-org/llama.cpp /src \
+ && git -C /src apply /patches/long-input-b11700.patch \
  && cmake -S /src -B /src/build -DGGML_CUDA=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCH}" \
           -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF \
  && cmake --build /src/build --target llama -j "$(nproc)" \

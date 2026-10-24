@@ -136,21 +136,33 @@ py -3.12 -m venv .venv; .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Invoke-WebRequest https://github.com/ggml-org/llama.cpp/releases/download/b11700/llama-b11700-bin-win-vulkan-x64.zip -OutFile llama.zip
 Expand-Archive llama.zip runtime
-# optional, 10-13% faster: the same DLL built with scripts/patches/vulkan-b11700.patch
-Invoke-WebRequest https://github.com/akivet/Mica/releases/download/vulkan-b11700-r1/ggml-vulkan.dll -OutFile runtime\ggml-vulkan.dll
+# optional, faster: the same two DLLs built with scripts/patches (long-input mode and the Vulkan patch)
+foreach ($f in 'llama.dll', 'ggml-vulkan.dll') { Invoke-WebRequest https://github.com/akivet/Mica/releases/download/b11700-r2/$f -OutFile runtime\$f }
 hf download sky7350/Mica-v0.5-4B mica-v0.5-4b-Q8_0.gguf tokenizer.json tokenizer_config.json chat_template.jinja config.json --local-dir weights
 python -m mica.server --gguf weights\mica-v0.5-4b-Q8_0.gguf --hf weights --runtime runtime --calibration calibration.json --n-ctx 8192 --seqs 2
 ```
 
 On an 8 GB card keep `--n-ctx 8192 --seqs 2` (each sequence, plus one for the state cache, holds `--n-ctx` tokens of
-attention memory). Measured on
-an AMD RX 6600 XT through Vulkan: about 0.4 s for a short request, 1.1 s at 1k tokens and 4.2 s at 4k with the
-official DLL, 1.0 s and 3.6 s with the patched one (same probabilities). The patch tiles the concat that feeds the
-linear-attention layers (all GPUs) and widens the int8 matmul tile on RX 6000 cards with AMD's driver
-(`GGML_VK_RDNA2_TUNE=0` turns that off). Flash
-attention is off by default on Vulkan builds; on that card it doubled the time of a 4k-token request. A second
-question about the same ~3.7k-token state took 0.11-0.16 s instead of 3.7 s, and the same transcript grown by 500 tokens
-0.66 s instead of 4.2 s (`--state-cache`, on by default, official DLL).
+attention memory). Measured on an AMD RX 6600 XT through Vulkan, first request on a state:
+
+| State | Official DLLs | Patched `ggml-vulkan.dll` | Both patched DLLs (long-input mode) |
+|---|---|---|---|
+| short | 0.4 s | 0.4 s | 0.4 s |
+| 1k tokens | 1.1 s | 1.0 s | 0.74 s |
+| 2k tokens | - | 1.9 s | 1.3 s |
+| 4k tokens | 4.2 s | 3.6 s | 2.4 s |
+
+The Vulkan patch tiles the concat that feeds the linear-attention layers (all GPUs) and widens the int8 matmul tile on
+RX 6000 cards with AMD's driver (`GGML_VK_RDNA2_TUNE=0` turns that off); its probabilities are the official build's.
+Long-input mode (`scripts/patches/long-input-b11700.patch`, any backend; Linux builds from `build_runtime.sh` and the
+Docker image include it) is the same path as the Hugging Face runtime's for prompts over 1k tokens: the state rows run
+the lower 16 layers, and the upper 16 only build what later rows read from them (attention K/V and the linear-attention
+state); the last 128 state tokens and the question run every layer. On 149 evaluation prompts over 1k tokens it was
+1.33x (1-2k) to 1.56x (8-16k) faster, answered 112 correctly against 113 exactly, and gave the same answer on 144.
+Shorter prompts are unchanged; `--long-input off` runs every row exactly. Flash attention is off by default on Vulkan
+builds; on that card it doubled the time of a 4k-token request. With `--state-cache` (on by default), a second question
+about the same ~3.7k-token state took 0.11-0.16 s instead of 3.7 s (0.23-0.26 s in long-input mode, which recomputes the
+last 128 state tokens), and the same transcript grown by 500 tokens about 0.6 s instead of 4.2 s.
 
 ## API
 
@@ -231,6 +243,7 @@ Server flags (`python -m mica.server --help`):
 | `--flash-attn` | `-1` | `-1` auto (off on Vulkan builds), `0` off, `1` on |
 | `--n-ubatch` | `512` | Tokens per prefill step on the GPU |
 | `--state-cache` | `on` | Keep the latest long state on the GPU: asking again about the same state, or a state that grew (an agent transcript), decodes only the new tokens. Costs one more sequence of `--n-ctx` |
+| `--long-input` | `on` | Faster path for prompts over 1k tokens on builds with the long-input patch (others run exactly) |
 | `--calibration` | `calibration.json` | Temperature applied to the probabilities |
 
 ## Tests

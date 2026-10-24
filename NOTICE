@@ -6,5 +6,6 @@ Copyright Alibaba Cloud, licensed under the Apache License 2.0.
 
 The serving runtime binds to llama.cpp (https://github.com/ggml-org/llama.cpp, tag b11700),
 Copyright The ggml authors, licensed under the MIT License. llama.cpp is built or downloaded by the user and is not
-part of this repository. The release asset ggml-vulkan.dll (tag vulkan-b11700-r1) is llama.cpp b11700's Vulkan backend
-built with scripts/patches/vulkan-b11700.patch; the llama.cpp MIT license ships beside it as LICENSE-llama.cpp.
+part of this repository; scripts/patches holds changes to it under the same MIT License. The release assets
+ggml-vulkan.dll and llama.dll (tags vulkan-b11700-r1 and b11700-r2) are llama.cpp b11700 built with those patches; the
+llama.cpp MIT license ships beside them as LICENSE-llama.cpp.

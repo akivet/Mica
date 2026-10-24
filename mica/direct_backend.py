@@ -253,6 +253,11 @@ def load_library(runtime_dir):
         function = getattr(lib, name)
         function.restype = c_size_t
         function.argtypes = [c_void_p, POINTER(ctypes.c_uint8), c_size_t, llama_seq_id]
+    # long-input mode needs a build with llama_set_upper_stale; upstream llama.cpp has none and runs every row exactly
+    lib.long_input = hasattr(lib, 'llama_set_upper_stale')
+    if lib.long_input:
+        lib.llama_set_upper_stale.restype = None
+        lib.llama_set_upper_stale.argtypes = [c_void_p, c_int32]
     return lib
 
 
@@ -261,7 +266,7 @@ class DirectJudge:
 
     def __init__(self, model_path, tokenizer, *, runtime_dir, n_ctx=4096, n_seq_max=1,
                  n_gpu_layers=-1, n_threads=None, temperature=1.0, max_length=2048, noul_logit_bias=0.0,
-                 flash_attn=-1, n_ubatch=None, header_cache=True, state_cache=True):
+                 flash_attn=-1, n_ubatch=None, header_cache=True, state_cache=True, long_input=True):
         if any(type(value) is not int or value < 1 for value in (n_ctx, n_seq_max, max_length)):
             raise ValueError('Context, sequence and input limits must be positive integers')
         if not (isinstance(temperature, (int, float)) and math.isfinite(temperature) and temperature > 0):
@@ -314,6 +319,12 @@ class DirectJudge:
         # being decoded again; with a short state the header is about a third of the prompt.
         self.header_cache = bool(header_cache)
         self._header, self._header_state = None, None
+        # long-input mode (the HF runtime's path for prompts over LONG_INPUT_MIN tokens): the header and the state up
+        # to LONG_INPUT_EXT tokens before its end are decoded with llama_set_upper_stale(LONG_INPUT_CUT), the rest of
+        # the prompt exactly. Its header checkpoint and state-cache entries are kept apart from the exact ones.
+        self.long_input = bool(long_input) and self.lib.long_input
+        self._header_state_long = None
+        self._slot_long = False
         # state cache: after a long state is decoded, sequence 0 at the end of the state is copied into a reserved
         # sequence on the GPU (a device copy, no host transfer). A later request whose prompt starts with those
         # tokens - the same state with another question, or a transcript that grew - copies it back and decodes only
@@ -426,6 +437,36 @@ class DirectJudge:
         finally:
             self.lib.llama_batch_free(batch)
 
+    def _decode_long(self, seq, tokens, start):
+        """Prefill rows in long-input mode (no logits)."""
+        self.lib.llama_set_upper_stale(self.ctx, LONG_INPUT_CUT)
+        try:
+            self._decode([(seq, tokens, start)], shared=True)
+        finally:
+            self.lib.llama_set_upper_stale(self.ctx, 0)
+
+    def _prefill(self, seq, tokens, lo, hi, long_start):
+        """Decode tokens[lo:hi] into seq: rows before long_start in long-input mode, the others exactly."""
+        mid = min(max(lo, long_start), hi)
+        if mid > lo:
+            self._decode_long(seq, tokens[lo:mid], lo)
+        if hi > mid:
+            self._decode([(seq, tokens[mid:hi], mid)], shared=True)
+
+    def _long_start(self, row, prompt):
+        """First exactly decoded row of a long-input prompt, or 0 (decode it all exactly): prompts over
+        LONG_INPUT_MIN tokens with a state, from LONG_INPUT_EXT tokens before the first token after the state, never
+        inside the header."""
+        if not self.long_input or len(prompt) <= LONG_INPUT_MIN:
+            return 0
+        text = prompt_for(row, self.tokenizer)
+        at = text.find(STATE_END)
+        if at < 0:
+            return 0
+        end = _common_prefix([self.tokenize(text[:at + len(STATE_END)]), prompt])
+        start = max(len(self._header_tokens(row)), end - LONG_INPUT_EXT)
+        return start if 0 < start < len(prompt) - 1 else 0
+
     def _header_tokens(self, row):
         """Token ids every prompt starts with: two renderings of a row that differ only in the state agree up to
         the state; one token less in case the first state token merges with the text before it."""
@@ -452,18 +493,21 @@ class DirectJudge:
             for seq in range(self.n_seq_max):
                 self.lib.llama_memory_seq_rm(self.memory, seq, -1, -1)
 
-    def _restore_base(self, window_prompts, row):
+    def _restore_base(self, window_prompts, row, long_start=0):
         """Empty the question sequences and put the longest cached prefix of these prompts into sequence 0: the
         state cache, or the prompt header (header cache, decoded and checkpointed on first use). Returns its token
-        count; 0 when nothing applies."""
+        count; 0 when nothing applies. long_start: these prompts take long-input mode up to that row, so only
+        entries decoded that way, and none past it, apply."""
         self._clear()
         limit = min(len(p) for p in window_prompts) - 1        # leave a readout token
+        if long_start:
+            limit = min(limit, long_start)
         cached = self._slot_tokens
         if cached is not None:
             n = len(cached)
             if int(self.lib.llama_memory_seq_pos_max(self.memory, self._slot)) != n - 1:
                 self._slot_tokens = None                         # the reserved sequence was cleared or changed
-            elif n <= limit and all(p[:n] == cached for p in window_prompts):
+            elif self._slot_long == bool(long_start) and n <= limit and all(p[:n] == cached for p in window_prompts):
                 self.lib.llama_memory_seq_cp(self.memory, self._slot, 0, -1, -1)
                 self.prefix_cache_stats['state_tokens_reused'] = n
                 return n
@@ -473,18 +517,24 @@ class DirectJudge:
         n = len(head)
         if not n or n > limit or not all(p[:n] == head for p in window_prompts):
             return 0
-        if self._header_state is None:
-            self._decode([(0, head, 0)], shared=True)
+        saved = self._header_state_long if long_start else self._header_state
+        if saved is None:
+            if long_start:
+                self._decode_long(0, head, 0)
+            else:
+                self._decode([(0, head, 0)], shared=True)
             data = self._checkpoint()
             if data is None:                       # this build cannot checkpoint a sequence: decode headers as before
                 self.header_cache = False
                 self._clear()
                 return 0
-            self._header_state = data
+            if long_start:
+                self._header_state_long = data
+            else:
+                self._header_state = data
             self.prefix_cache_stats['header_builds'] = self.prefix_cache_stats.get('header_builds', 0) + 1
-        elif self.lib.llama_state_seq_set_data(self.ctx, self._header_state, len(self._header_state), 0) != \
-                len(self._header_state):
-            self.header_cache, self._header_state = False, None
+        elif self.lib.llama_state_seq_set_data(self.ctx, saved, len(saved), 0) != len(saved):
+            self.header_cache, self._header_state, self._header_state_long = False, None, None
             self._clear()
             return 0
         self.prefix_cache_stats['header_tokens_reused'] = n
@@ -505,11 +555,12 @@ class DirectJudge:
             return 0
         return cut
 
-    def _remember_state(self, tokens):
+    def _remember_state(self, tokens, long_input=False):
         """Copy sequence 0 (holding exactly `tokens`) into the state-cache sequence."""
         self.lib.llama_memory_seq_rm(self.memory, self._slot, -1, -1)
         self.lib.llama_memory_seq_cp(self.memory, 0, self._slot, -1, -1)
         self._slot_tokens = list(tokens)
+        self._slot_long = bool(long_input)
         self.prefix_cache_stats['state_saved_tokens'] = len(tokens)
 
     def _logits_at(self, index, ids):
@@ -603,12 +654,20 @@ class DirectJudge:
             # data=False resets cell metadata only; zeroing every KV/recurrent buffer (data=True) cost ~600 ms per
             # call and is unnecessary: new sequences re-initialise their recurrent state on first use (identical
             # probabilities to data=True). _header_base clears, then restores the cached header into sequence 0.
+            # long-input mode applies to the window when every prompt takes it from the same row over the same
+            # tokens (one state, several questions); a session prefix keeps every row exact
+            long_start = 0
+            if not persistent and self.long_input:
+                starts = {self._long_start(rows[i], prompts[i]) for i in window}
+                long_start = starts.pop() if len(starts) == 1 else 0
+                if long_start and not all(prompts[i][:long_start] == prompts[window[0]][:long_start] for i in window):
+                    long_start = 0
             if persistent:
                 self.lib.llama_memory_clear(self.memory, False)
                 self._slot_tokens = None
                 base = 0
             else:
-                base = self._restore_base([prompts[i] for i in window], rows[window[0]])
+                base = self._restore_base([prompts[i] for i in window], rows[window[0]], long_start)
             shared = persistent or (_common_prefix([prompts[i] for i in window])
                                     if share_prefix and len(window) > 1 else 0)
             # Even a complete-prefix match needs a final token to produce logits.
@@ -618,6 +677,11 @@ class DirectJudge:
             cut = 0 if persistent else self._state_cut(rows[first], prompts[first], base)
             if cut and not all(prompts[i][:cut] == prompts[first][:cut] for i in window):
                 cut = 0
+            if long_start:
+                # the state cache keeps the long-input rows only: a later prompt resumes them before its own exact rows
+                cut = long_start if self._slot is not None and long_start - base >= STATE_CACHE_MIN else 0
+                shared = max(shared, long_start)
+                self.prefix_cache_stats['long_input_rows'] = long_start
             shared = max(shared, cut)
             if shared:
                 # Decode the shared state once into sequence 0, then copy the whole
@@ -629,11 +693,11 @@ class DirectJudge:
                     self.prefix_cache_stats['restored_prefix_tokens'] += shared
                 else:
                     if cut:
-                        self._decode([(0, prompts[first][base:cut], base)], shared=True)
-                        self._remember_state(prompts[first][:cut])
-                        self._decode([(0, prompts[first][cut:shared], cut)], shared=True)
+                        self._prefill(0, prompts[first], base, cut, long_start)
+                        self._remember_state(prompts[first][:cut], bool(long_start))
+                        self._prefill(0, prompts[first], cut, shared, long_start)
                     else:
-                        self._decode([(0, prompts[first][base:shared], base)], shared=True)
+                        self._prefill(0, prompts[first], base, shared, long_start)
                     self.prefix_cache_stats['prefix_tokens_decoded'] += shared - base
                     if persistent:
                         self._save_prefix(cache_key)
@@ -695,6 +759,9 @@ def _compare(rows, reference, other):
 
 STATE_END = chr(10) + '</state>' + chr(10)   # rendered prompt: end of the state block (native.prompt_for)
 STATE_CACHE_MIN = 256                         # state tokens beyond the restored prefix worth a checkpoint
+LONG_INPUT_MIN = 1024                         # long-input mode above this many prompt tokens (as the HF runtime)
+LONG_INPUT_CUT = 16
+LONG_INPUT_EXT = 128
 
 
 def _common_prefix(sequences):

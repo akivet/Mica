@@ -16,10 +16,12 @@ case "$BACKEND" in
   *) echo "BACKEND must be cuda, vulkan, hip or metal" >&2; exit 1 ;;
 esac
 git clone -q --depth 1 --branch "$TAG" https://github.com/ggml-org/llama.cpp "llama.cpp-$TAG"
+PATCHES="$(cd "$(dirname "$0")" && pwd)/patches"
+# every backend: long-input mode (llama_set_upper_stale), Mica's faster path for prompts over 1k tokens
+if [ -f "$PATCHES/long-input-$TAG.patch" ]; then git -C "llama.cpp-$TAG" apply "$PATCHES/long-input-$TAG.patch"; fi
 # Vulkan at b11700: tiled concat for the linear-attention conv input, and a wider int8 matmul tile on RX 6000 cards
 # with AMD's driver (GGML_VK_RDNA2_TUNE=0 turns the tile off at run time)
-PATCH="$(cd "$(dirname "$0")" && pwd)/patches/vulkan-$TAG.patch"
-if [ "$BACKEND" = vulkan ] && [ -f "$PATCH" ]; then git -C "llama.cpp-$TAG" apply "$PATCH"; fi
+if [ "$BACKEND" = vulkan ] && [ -f "$PATCHES/vulkan-$TAG.patch" ]; then git -C "llama.cpp-$TAG" apply "$PATCHES/vulkan-$TAG.patch"; fi
 cmake -S "llama.cpp-$TAG" -B "llama.cpp-$TAG/build" "${FLAGS[@]}" -DBUILD_SHARED_LIBS=ON \
       -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF
 cmake --build "llama.cpp-$TAG/build" --target llama -j "$(getconf _NPROCESSORS_ONLN)"
