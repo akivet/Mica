@@ -1,5 +1,5 @@
 weights
 runtime
-llama.cpp-b11010
+llama.cpp-b*
 results
 *.gguf

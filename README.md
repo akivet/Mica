@@ -113,18 +113,44 @@ docker run --gpus all -p 8010:8010 -v mica-weights:/weights mica
 The first start downloads `mica-v0.5-4b-Q8_0.gguf` and the tokenizer into the `mica-weights` volume. For a smaller GPU
 pick a file from [Choose a file](#choose-a-file) and pass it as `-e MICA_GGUF=...`. The image is built for CUDA
 architectures 86, 89 and 90 (RTX 30xx, RTX 40xx and L40S, H100); pass `--build-arg CUDA_ARCH=...` for others.
+The image is for NVIDIA GPUs; for AMD, Intel or Apple use the steps below.
 
 ### Without Docker (GGUF, llama.cpp)
 
-Linux, CUDA 12, Python 3.10 or newer:
+Linux or macOS, Python 3.10 or newer. `BACKEND` picks the GPU API: `cuda` (default), `vulkan` (AMD, Intel),
+`hip` (AMD with ROCm) or `metal` (Apple):
 
 ```bash
 pip install -r requirements.txt
-bash scripts/build_runtime.sh        # builds llama.cpp into ./runtime
+BACKEND=cuda bash scripts/build_runtime.sh   # builds llama.cpp into ./runtime
 hf download sky7350/Mica-v0.5-4B mica-v0.5-4b-Q8_0.gguf \
    tokenizer.json tokenizer_config.json chat_template.jinja config.json --local-dir weights
-bash scripts/serve.sh                # http://127.0.0.1:8010/v1/systemone
+bash scripts/serve.sh                        # http://127.0.0.1:8010/v1/systemone
 ```
+
+Windows with any GPU (AMD, Intel or NVIDIA) through Vulkan, Python 3.10 or newer, in PowerShell:
+
+```powershell
+git clone https://github.com/akivet/Mica; cd Mica
+py -3.12 -m venv .venv; .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+Invoke-WebRequest https://github.com/ggml-org/llama.cpp/releases/download/b11700/llama-b11700-bin-win-vulkan-x64.zip -OutFile llama.zip
+Expand-Archive llama.zip runtime
+# optional, 10-13% faster: the same DLL built with scripts/patches/vulkan-b11700.patch
+Invoke-WebRequest https://github.com/akivet/Mica/releases/download/vulkan-b11700-r1/ggml-vulkan.dll -OutFile runtime\ggml-vulkan.dll
+hf download sky7350/Mica-v0.5-4B mica-v0.5-4b-Q8_0.gguf tokenizer.json tokenizer_config.json chat_template.jinja config.json --local-dir weights
+python -m mica.server --gguf weights\mica-v0.5-4b-Q8_0.gguf --hf weights --runtime runtime --calibration calibration.json --n-ctx 8192 --seqs 2
+```
+
+On an 8 GB card keep `--n-ctx 8192 --seqs 2` (each sequence, plus one for the state cache, holds `--n-ctx` tokens of
+attention memory). Measured on
+an AMD RX 6600 XT through Vulkan: about 0.4 s for a short request, 1.1 s at 1k tokens and 4.2 s at 4k with the
+official DLL, 1.0 s and 3.6 s with the patched one (same probabilities). The patch tiles the concat that feeds the
+linear-attention layers (all GPUs) and widens the int8 matmul tile on RX 6000 cards with AMD's driver
+(`GGML_VK_RDNA2_TUNE=0` turns that off). Flash
+attention is off by default on Vulkan builds; on that card it doubled the time of a 4k-token request. A second
+question about the same ~3.7k-token state took 0.11-0.16 s instead of 3.7 s, and the same transcript grown by 500 tokens
+0.66 s instead of 4.2 s (`--state-cache`, on by default, official DLL).
 
 ## API
 
@@ -181,7 +207,7 @@ search and routing decisions, see the [prompting guide](https://huggingface.co/s
 | 16 GB | RTX 4060 Ti 16 GB, 5060 Ti | INT8 · CUDA runtime | 27k | same |
 | 12 GB | RTX 3060 12 GB, 4070 | INT8 · CUDA runtime | 12k | same |
 | 8 GB | RTX 3070, 4060 | INT8 · CUDA runtime | 6k | same |
-| AMD, Apple, CPU | RX 7900, M-series | `mica-v0.5-4b-Q8_0.gguf` | — | -0.2 pt |
+| AMD, Intel, Apple, CPU | RX 7900, Arc, M-series | `mica-v0.5-4b-Q8_0.gguf` (GGUF, without Docker) | — | -0.2 pt |
 
 All files are in [sky7350/Mica-v0.5-4B](https://huggingface.co/sky7350/Mica-v0.5-4B/tree/main).
 
@@ -202,7 +228,9 @@ Server flags (`python -m mica.server --help`):
 |---|---|---|
 | `--n-ctx` | `32768` | Longest accepted input, in tokens |
 | `--seqs` | `8` | Questions decoded side by side on one input; more are handled in groups of this size |
-| `--flash-attn` | `-1` | `-1` auto, `0` off (faster on some Vulkan GPUs), `1` on |
+| `--flash-attn` | `-1` | `-1` auto (off on Vulkan builds), `0` off, `1` on |
+| `--n-ubatch` | `512` | Tokens per prefill step on the GPU |
+| `--state-cache` | `on` | Keep the latest long state on the GPU: asking again about the same state, or a state that grew (an agent transcript), decodes only the new tokens. Costs one more sequence of `--n-ctx` |
 | `--calibration` | `calibration.json` | Temperature applied to the probabilities |
 
 ## Tests

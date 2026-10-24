@@ -40,8 +40,10 @@ MAX_BODY_BYTES = 64 * 1024 * 1024
 
 def input_tokens(rows):
     """Prefill tokens actually needed: the shared prefix once, plus each question's own suffix."""
-    from .native import prompt_for
-    toks = [JUDGE.tokenize(prompt_for(r, JUDGE.tokenizer)) for r in rows]
+    toks = getattr(JUDGE, 'last_prompts', None)
+    if toks is None or len(toks) != len(rows):   # the judge keeps the token ids of its last call
+        from .native import prompt_for
+        toks = [JUDGE.tokenize(prompt_for(r, JUDGE.tokenizer)) for r in rows]
     common = 0
     if len(toks) > 1:
         while all(common < len(t) for t in toks) and len({t[common] for t in toks}) == 1:
@@ -63,11 +65,16 @@ def answer(body):
 
 
 class Handler(BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'   # keep-alive: every response carries Content-Length
+
     def _send(self, code, obj):
         data = json.dumps(obj, ensure_ascii=False).encode('utf-8')
         self.send_response(code)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Content-Length', str(len(data)))
+        if code != 200:   # an error may leave an unread body on the socket: do not reuse the connection
+            self.send_header('Connection', 'close')
+            self.close_connection = True
         self.end_headers()
         self.wfile.write(data)
 
@@ -112,13 +119,18 @@ def main():
     # Each sequence holds a full --n-ctx of attention KV (about 1 GiB at 32k for this model at F16), so 8 sequences
     # plus BF16 weights fit a 24 GB GPU. More questions than --seqs are answered in windows of --seqs.
     ap.add_argument('--seqs', type=int, default=8, help='parallel sequences (questions decoded together)')
-    ap.add_argument('--flash-attn', type=int, default=-1, help='-1 auto, 0 off (e.g. some Vulkan GPUs), 1 on')
+    ap.add_argument('--flash-attn', type=int, default=-1, help='-1 auto (off on Vulkan builds), 0 off, 1 on')
+    ap.add_argument('--n-ubatch', type=int, default=512, help='tokens per prefill step on the GPU')
+    ap.add_argument('--state-cache', choices=('on', 'off'), default='on',
+                    help='keep the most recent long state on the GPU (one more sequence of --n-ctx) so a later request '
+                         'with the same state, or a grown one, decodes only the new tokens')
     ap.add_argument('--name', default='mica-v0.5-4b')
     a = ap.parse_args()
     from transformers import AutoTokenizer
     from .direct_backend import DirectJudge
     tok = AutoTokenizer.from_pretrained(a.hf)
-    kw = dict(runtime_dir=a.runtime, n_ctx=a.n_ctx, n_seq_max=a.seqs, max_length=a.n_ctx, flash_attn=a.flash_attn, n_ubatch=512)
+    kw = dict(runtime_dir=a.runtime, n_ctx=a.n_ctx, n_seq_max=a.seqs, max_length=a.n_ctx, flash_attn=a.flash_attn, n_ubatch=a.n_ubatch,
+              state_cache=a.state_cache == 'on')
     JUDGE = (DirectJudge.from_calibration(a.gguf, tok, a.calibration, **kw) if a.calibration else DirectJudge(a.gguf, tok, **kw))
     MODEL_NAME = a.name
     print(json.dumps({'serving': f'http://{a.host}:{a.port}/v1/systemone', 'model': MODEL_NAME}), flush=True)

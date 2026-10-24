@@ -1,0 +1,158 @@
+diff -ru a/ggml/src/ggml-vulkan/ggml-vulkan.cpp b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+--- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+@@ -294,6 +294,18 @@
+     return tensor_offset - descriptor_offset;
+ }
+ 
++uint32_t ggml_vk_concat_unit_size(ggml_type type);
++
++// concat.comp's tiled path (4-byte units, dim 0, src1 transposed): one 512-invocation workgroup per 16x32 dst tile.
++// Mirrors the shader's test on the push constants (nb10 != 1, nb11 == 1 in units).
++static uint32_t ggml_vk_concat_tiles(const ggml_tensor * src1, const ggml_tensor * dst) {
++    if (ggml_vk_concat_unit_size(dst->type) != 4 || ggml_is_quantized(dst->type) || dst->op_params[0] != 0 ||
++        src1->nb[0] / 4 == 1 || src1->nb[1] / 4 != 1) {
++        return 0;
++    }
++    return (uint32_t)(CEIL_DIV(dst->ne[0], 16) * CEIL_DIV(dst->ne[1], 32) * dst->ne[2] * dst->ne[3]);
++}
++
+ uint32_t ggml_vk_concat_unit_size(ggml_type type) {
+     const uint32_t type_size = ggml_type_size(type);
+ 
+@@ -1375,6 +1387,13 @@
+     }
+ }
+ 
++// RDNA2 on the AMD proprietary driver (RX 6000 series on Windows): matmul tuning measured on an RX 6600 XT
++static bool ggml_vk_rdna2_tune(const vk_device & device) {
++    static const bool enabled = [] { const char * v = getenv("GGML_VK_RDNA2_TUNE"); return !(v && v[0] == '0'); }();
++    return enabled && device->vendor_id == VK_VENDOR_ID_AMD && device->driver_id == vk::DriverId::eAmdProprietary &&
++           device->architecture == AMD_RDNA2 && !device->coopmat_int_support;
++}
++
+ vk_fa_pipeline_state get_fa_pipeline_state(const vk_device& device, const vk_fa_tuning_params& params, uint32_t hsk, uint32_t hsv, bool aligned, bool f32acc,
+                                                   bool use_mask, bool use_mask_opt, bool use_logit_softcap, bool use_sparse, ggml_type k_type, ggml_type v_type) {
+     const bool old_amd_windows = device->vendor_id == VK_VENDOR_ID_AMD && device->driver_id == vk::DriverId::eAmdProprietary &&
+@@ -1871,6 +1890,12 @@
+             }
+         }
+ 
++        if (ggml_vk_rdna2_tune(device)) {
++            // RDNA2 on the AMD proprietary driver: a wider integer-dot tile, measured on an RX 6600 XT
++            // (q8_0 m=4096 n=512 k=14336: 8.97 -> 11.28 TFLOPS)
++            m_warptile_mmq_int = { 256, 64, 128, 32, 32, 64, 2, 2, 4, 1, 64 };
++        }
++
+         const bool use_cm1_int = device->coopmat_int_support &&
+                                  (device->architecture == AMD_RDNA3 || device->architecture == AMD_RDNA4);
+ 
+@@ -2261,6 +2286,9 @@
+ 
+     std::vector<vk_tile_config> tc_mm = {{s_warptile, s_wg_denoms, s_align}, {m_warptile, m_wg_denoms, m_align}, {l_warptile, l_wg_denoms, l_align}};
+     std::vector<vk_tile_config> tc_mmq = {{s_warptile_mmq, s_mmq_wg_denoms, s_align}, {m_warptile_mmq, m_mmq_wg_denoms, m_align}, {l_warptile_mmq, l_mmq_wg_denoms, l_align}};
++    // the retuned integer-dot medium tile dispatches with its own denominators (BM, BN)
++    const std::array<uint32_t, 3> m_mmq_int_wg_denoms = ggml_vk_rdna2_tune(device) ?
++        std::array<uint32_t, 3>{ m_warptile_mmq_int[1], m_warptile_mmq_int[2], 1 } : m_mmq_wg_denoms;
+ 
+ #if defined(VK_NV_cooperative_matrix2) && defined(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT)
+     if (device->coopmat2) {
+@@ -2625,7 +2653,7 @@
+ 
+ #if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
+             if (device->integer_dot_product) {
+-                std::vector<vk_tile_config> tc_mmq_int = {{s_warptile_mmq_int, s_mmq_wg_denoms, s_align}, {m_warptile_mmq_int, m_mmq_wg_denoms, m_align}, {l_warptile_mmq_int, l_mmq_wg_denoms, l_align}};
++                std::vector<vk_tile_config> tc_mmq_int = {{s_warptile_mmq_int, s_mmq_wg_denoms, s_align}, {m_warptile_mmq_int, m_mmq_int_wg_denoms, m_align}, {l_warptile_mmq_int, l_mmq_wg_denoms, l_align}};
+                 std::vector<vk_tile_config> tc_mmq_int_k = {{s_warptile_mmq_int_k, s_mmq_wg_denoms, s_align}, {m_warptile_mmq_int_k, m_mmq_wg_denoms, m_align}, {l_warptile_mmq_int_k, l_mmq_wg_denoms, l_align}};
+                 sg_create_mmq({GGML_TYPE_Q2_0, GGML_TYPE_Q8_1, false, false}, tc_mmq_int, "matmul_q2_0_q8_1", matmul_q2_0_q8_1_len, matmul_q2_0_q8_1_data, sizeof(vk_mat_mat_push_constants), 3);
+                 sg_create_mmq({GGML_TYPE_Q4_0, GGML_TYPE_Q8_1, false, false}, tc_mmq_int, "matmul_q4_0_q8_1", matmul_q4_0_q8_1_len, matmul_q4_0_q8_1_data, sizeof(vk_mat_mat_push_constants), 3);
+@@ -2739,7 +2767,7 @@
+ 
+ #if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
+             if (device->integer_dot_product) {
+-                std::vector<vk_tile_config> tc_mmq_int = {{s_warptile_mmq_int, s_mmq_wg_denoms, s_align}, {m_warptile_mmq_int, m_mmq_wg_denoms, m_align}, {l_warptile_mmq_int, l_mmq_wg_denoms, l_align}};
++                std::vector<vk_tile_config> tc_mmq_int = {{s_warptile_mmq_int, s_mmq_wg_denoms, s_align}, {m_warptile_mmq_int, m_mmq_int_wg_denoms, m_align}, {l_warptile_mmq_int, l_mmq_wg_denoms, l_align}};
+                 std::vector<vk_tile_config> tc_mmq_int_k = {{s_warptile_mmq_int_k, s_mmq_wg_denoms, s_align}, {m_warptile_mmq_int_k, m_mmq_wg_denoms, m_align}, {l_warptile_mmq_int_k, l_mmq_wg_denoms, l_align}};
+                 sg_create_mmq({GGML_TYPE_Q2_0, GGML_TYPE_Q8_1, false, false}, tc_mmq_int, "matmul_q2_0_q8_1", matmul_q2_0_q8_1_fp32_len, matmul_q2_0_q8_1_fp32_data, sizeof(vk_mat_mat_push_constants), 3);
+                 sg_create_mmq({GGML_TYPE_Q4_0, GGML_TYPE_Q8_1, false, false}, tc_mmq_int, "matmul_q4_0_q8_1", matmul_q4_0_q8_1_fp32_len, matmul_q4_0_q8_1_fp32_data, sizeof(vk_mat_mat_push_constants), 3);
+@@ -9722,6 +9750,9 @@
+             if (op == GGML_OP_CONCAT && ggml_is_quantized(dst->type)) {
+                 ne = ne / ggml_blck_size(dst->type) * ggml_type_size(dst->type) / ggml_vk_concat_unit_size(dst->type);
+             }
++            if (op == GGML_OP_CONCAT && ggml_vk_concat_tiles(src1, dst) != 0) {
++                ne = ggml_vk_concat_tiles(src1, dst) * 512;   // tiled path: a 512-wide row per tile
++            }
+             // copy_to_quant has block size of 32, and each thread does QUANT_K elements.
+             // Splitting into 512x512xZ wouldn't work well since each workgroup does 1024 elements.
+             // So divide by block size here before splitting into 512x512 groups.
+diff -ru a/ggml/src/ggml-vulkan/vulkan-shaders/concat.comp b/ggml/src/ggml-vulkan/vulkan-shaders/concat.comp
+--- a/ggml/src/ggml-vulkan/vulkan-shaders/concat.comp
++++ b/ggml/src/ggml-vulkan/vulkan-shaders/concat.comp
+@@ -5,9 +5,55 @@
+ 
+ layout(local_size_x = 512, local_size_y = 1, local_size_z = 1) in;
+ 
++#ifdef CONCAT_TILED
++// dim 0 with a transposed src1 (nb10 != 1, nb11 == 1): one workgroup per 16 (i0) x 32 (i1) dst tile, loaded with i1
++// fastest (contiguous in src1) and stored with i0 fastest (contiguous in dst). The host dispatches one 512-wide row
++// of invocations per tile (ggml_vk_concat_tiled).
++shared D_TYPE ctile[16][33];
++
++void concat_tiled() {
++    const uint tile = gl_GlobalInvocationID.z * 512 + gl_GlobalInvocationID.y;
++    const uint lid = gl_LocalInvocationID.x;
++    const uint t0n = (p.ne20 + 15) / 16;
++    const uint per = t0n * ((p.ne21 + 31) / 32);
++    if (tile >= per * p.ne22 * p.ne23) {
++        return;     // the whole workgroup leaves together
++    }
++    const uint i23 = tile / per;
++    const uint r = tile - i23 * per;
++    const uint i3 = i23 / p.ne22;
++    const uint i2 = i23 - i3 * p.ne22;
++    const uint b0 = (r % t0n) * 16;
++    const uint b1 = (r / t0n) * 32;
++    {
++        const uint i0 = b0 + (lid >> 5);
++        const uint i1 = b1 + (lid & 31);
++        if (i0 < p.ne20 && i1 < p.ne21) {
++            ctile[lid >> 5][lid & 31] = i0 < p.ne00
++                ? D_TYPE(data_a[get_aoffset() + i3*p.nb03 + i2*p.nb02 + i1*p.nb01 + i0*p.nb00])
++                : D_TYPE(data_b[get_boffset() + i3*p.nb13 + i2*p.nb12 + i1*p.nb11 + (i0 - p.ne00)*p.nb10]);
++        }
++    }
++    barrier();
++    {
++        const uint i0 = b0 + (lid & 15);
++        const uint i1 = b1 + (lid >> 4);
++        if (i0 < p.ne20 && i1 < p.ne21) {
++            data_d[get_doffset() + i3*p.nb23 + i2*p.nb22 + i1*p.nb21 + i0*p.nb20] = ctile[lid & 15][lid >> 4];
++        }
++    }
++}
++#endif
++
+ void main() {
+     const uint idx = gl_GlobalInvocationID.z * 262144 + gl_GlobalInvocationID.y * 512 + gl_GlobalInvocationID.x;
+     const int dim = p.param3;
++#ifdef CONCAT_TILED
++    if (dim == 0 && p.nb10 != 1 && p.nb11 == 1) {
++        concat_tiled();
++        return;
++    }
++#endif
+ 
+     if (idx >= p.ne) {
+         return;
+diff -ru a/ggml/src/ggml-vulkan/vulkan-shaders/vulkan-shaders-gen.cpp b/ggml/src/ggml-vulkan/vulkan-shaders/vulkan-shaders-gen.cpp
+--- a/ggml/src/ggml-vulkan/vulkan-shaders/vulkan-shaders-gen.cpp
++++ b/ggml/src/ggml-vulkan/vulkan-shaders/vulkan-shaders-gen.cpp
+@@ -963,7 +963,7 @@
+ 
+     string_to_spv("concat_i8", "concat.comp", {{"A_TYPE", "uint8_t"}, {"B_TYPE", "uint8_t"}, {"D_TYPE", "uint8_t"}});
+     string_to_spv("concat_i16", "concat.comp", {{"A_TYPE", "uint16_t"}, {"B_TYPE", "uint16_t"}, {"D_TYPE", "uint16_t"}});
+-    string_to_spv("concat_i32", "concat.comp", {{"A_TYPE", "uint"}, {"B_TYPE", "uint"}, {"D_TYPE", "uint"}});
++    string_to_spv("concat_i32", "concat.comp", {{"A_TYPE", "uint"}, {"B_TYPE", "uint"}, {"D_TYPE", "uint"}, {"CONCAT_TILED", "1"}});
+     string_to_spv("concat_i64", "concat.comp", {{"A_TYPE", "uvec2"}, {"B_TYPE", "uvec2"}, {"D_TYPE", "uvec2"}});
+ 
+     string_to_spv("upscale_f32", "upscale.comp", {{"A_TYPE", "float"}, {"B_TYPE", "float"}, {"D_TYPE", "float"}});
