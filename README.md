@@ -117,7 +117,8 @@ The image is for NVIDIA GPUs; for AMD, Intel or Apple use the steps below.
 
 ### Without Docker (GGUF, llama.cpp)
 
-Linux or macOS, Python 3.10 or newer. `BACKEND` picks the GPU API: `cuda` (default), `vulkan` (AMD, Intel),
+Linux or macOS, Python 3.10 or newer. The Python side only renders prompts and tokenizes, so `requirements.txt` is
+about 30 MB (no PyTorch). `BACKEND` picks the GPU API: `cuda` (default), `vulkan` (AMD, Intel),
 `hip` (AMD with ROCm) or `metal` (Apple):
 
 ```bash

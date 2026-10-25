@@ -20,9 +20,8 @@ RUN git clone --depth 1 --branch b11700 https://github.com/ggml-org/llama.cpp /s
 
 FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip curl ca-certificates && rm -rf /var/lib/apt/lists/*
-# Python only renders prompts and tokenizes; inference runs in llama.cpp on the GPU, so the CPU torch wheel is enough.
-RUN pip3 install --no-cache-dir torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu \
- && pip3 install --no-cache-dir "transformers==5.5.0" safetensors "huggingface_hub>=1.0"
+# Python only renders prompts and tokenizes (no torch); inference runs in llama.cpp on the GPU.
+RUN pip3 install --no-cache-dir "transformers==5.5.0" jinja2 "huggingface_hub>=1.0"
 COPY --from=runtime-build /runtime /app/runtime
 COPY mica /app/mica
 COPY calibration.json scripts/entrypoint.sh /app/

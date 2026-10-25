@@ -1,4 +1,3 @@
-torch==2.7.1
 transformers==5.5.0
-safetensors
+jinja2
 huggingface_hub
