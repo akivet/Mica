@@ -128,6 +128,17 @@ hf download sky7350/Mica-v0.5-4B mica-v0.5-4b-Q8_0.gguf \
 bash scripts/serve.sh                        # http://127.0.0.1:8010/v1/systemone
 ```
 
+`llama-server -m mica-v0.5-4b-Q8_0.gguf` loads the file but answers `/v1/systemone` with 501 "This model is not a
+decision model": llama-server only serves the decision models it has a built-in readout for, and Mica is not one of
+them. This server reads Mica's answers itself and uses llama.cpp as a library, so a llama.cpp you have already built
+works too: point `--runtime` at the directory that holds `libllama.so` (`build/bin` of a CMake build with shared
+libraries, b11010, or b11700 and later) instead of running `build_runtime.sh`:
+
+```bash
+python -m mica.server --gguf weights/mica-v0.5-4b-Q8_0.gguf --hf weights --runtime ~/llama.cpp/build/bin \
+  --calibration calibration.json --port 8010
+```
+
 Windows with any GPU (AMD, Intel or NVIDIA) through Vulkan, Python 3.10 or newer, in PowerShell:
 
 ```powershell
