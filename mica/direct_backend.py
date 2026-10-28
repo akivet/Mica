@@ -48,6 +48,10 @@ llama_pos = c_int32
 llama_seq_id = c_int32
 
 
+class InputTooLongError(ValueError):
+    """The rendered input is longer than the context. It is refused, never truncated."""
+
+
 class llama_model_params(ctypes.Structure):
     _fields_ = [
         ('devices', c_void_p),
@@ -416,7 +420,7 @@ class DirectJudge:
         prompts = [self.tokenize(prompt_for(row, self.tokenizer)) for row in rows]
         for tokens in prompts:
             if len(tokens) > min(self.max_length, self.n_ctx_seq):
-                raise ValueError('Input exceeds max_length; evidence was not truncated')
+                raise InputTooLongError('Input exceeds max_length; evidence was not truncated')
         labels = [self.label_ids(row) for row in rows]
         persistent = 0
         cache_key = None

@@ -9,10 +9,12 @@ POST /v1/systemone  (same path as the TypeSafe API and Kev's local server)
     choice -> {"type": "choice", "choice": id, "probabilities": {id: p}, "answer": id, "confidence": max(p)}
     score  -> {"type": "score", "score": int, "probabilities": {"0".."n-1": p}, "answer": int, "confidence": max(p)}
 Questions on the same state share the rendered prefix (one prefill of the state, suffixes decoded as independent
-sequences), which is exactly the multi-question pattern of the wire format. Invalid requests return HTTP 400.
+sequences), which is exactly the multi-question pattern of the wire format. Invalid requests return HTTP 400; an input longer than the context gets HTTP 422 (input_too_long) and is never truncated.
 """
 import argparse, json, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+from .direct_backend import InputTooLongError
 
 JUDGE = None
 MODEL_NAME = 'mica-v0.1-4b'
@@ -100,7 +102,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {'error': str(e)})
         try:
             probs = JUDGE.judge(rows, share_prefix=len(rows) > 1)
-        except ValueError as e:  # e.g. input over the length contract: never truncated
+        except InputTooLongError as e:  # refused, not truncated; a question error, not a bad request
+            return self._send(422, {'error': {'type': 'question_error', 'code': 'input_too_long', 'message': str(e)}})
+        except ValueError as e:  # e.g. a label that is not one token in this runtime
             return self._send(400, {'error': str(e)})
         self._send(200, {'model': MODEL_NAME, 'answers': {r['id']: answer(r, p) for r, p in zip(rows, probs)},
                          'usage': {'input_tokens': input_tokens(rows), 'output_tokens': 0},
