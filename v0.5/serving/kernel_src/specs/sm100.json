@@ -1,0 +1,6503 @@
+{
+ "cc": 100,
+ "arch_specific": true,
+ "triton": "3.3.1",
+ "specs": [
+  {
+   "key": "act|bf16|K2560|inv0",
+   "kernel": "act_quant",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "HAS_INV": 0,
+    "BLOCK": 1024
+   },
+   "div16": [
+    "X",
+    "INV",
+    "Q",
+    "S",
+    "K",
+    "s_xm",
+    "s_qm"
+   ],
+   "expect": {
+    "K": 2560,
+    "s_xm": 2560,
+    "s_qm": 2560
+   },
+   "grid": "M",
+   "params": [
+    {
+     "name": "X",
+     "type": "*bf16"
+    },
+    {
+     "name": "INV",
+     "type": "*fp32"
+    },
+    {
+     "name": "Q",
+     "type": "*i8"
+    },
+    {
+     "name": "S",
+     "type": "*fp32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_xm",
+     "type": "i32"
+    },
+    {
+     "name": "s_qm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "act|bf16|K2560|inv1",
+   "kernel": "act_quant",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "HAS_INV": 1,
+    "BLOCK": 1024
+   },
+   "div16": [
+    "X",
+    "INV",
+    "Q",
+    "S",
+    "K",
+    "s_xm",
+    "s_qm"
+   ],
+   "expect": {
+    "K": 2560,
+    "s_xm": 2560,
+    "s_qm": 2560
+   },
+   "grid": "M",
+   "params": [
+    {
+     "name": "X",
+     "type": "*bf16"
+    },
+    {
+     "name": "INV",
+     "type": "*fp32"
+    },
+    {
+     "name": "Q",
+     "type": "*i8"
+    },
+    {
+     "name": "S",
+     "type": "*fp32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_xm",
+     "type": "i32"
+    },
+    {
+     "name": "s_qm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "act|bf16|K4096|inv0",
+   "kernel": "act_quant",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "HAS_INV": 0,
+    "BLOCK": 1024
+   },
+   "div16": [
+    "X",
+    "INV",
+    "Q",
+    "S",
+    "K",
+    "s_xm",
+    "s_qm"
+   ],
+   "expect": {
+    "K": 4096,
+    "s_xm": 4096,
+    "s_qm": 4096
+   },
+   "grid": "M",
+   "params": [
+    {
+     "name": "X",
+     "type": "*bf16"
+    },
+    {
+     "name": "INV",
+     "type": "*fp32"
+    },
+    {
+     "name": "Q",
+     "type": "*i8"
+    },
+    {
+     "name": "S",
+     "type": "*fp32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_xm",
+     "type": "i32"
+    },
+    {
+     "name": "s_qm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "act|bf16|K4096|inv1",
+   "kernel": "act_quant",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "HAS_INV": 1,
+    "BLOCK": 1024
+   },
+   "div16": [
+    "X",
+    "INV",
+    "Q",
+    "S",
+    "K",
+    "s_xm",
+    "s_qm"
+   ],
+   "expect": {
+    "K": 4096,
+    "s_xm": 4096,
+    "s_qm": 4096
+   },
+   "grid": "M",
+   "params": [
+    {
+     "name": "X",
+     "type": "*bf16"
+    },
+    {
+     "name": "INV",
+     "type": "*fp32"
+    },
+    {
+     "name": "Q",
+     "type": "*i8"
+    },
+    {
+     "name": "S",
+     "type": "*fp32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_xm",
+     "type": "i32"
+    },
+    {
+     "name": "s_qm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "act|bf16|K9216|inv0",
+   "kernel": "act_quant",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "HAS_INV": 0,
+    "BLOCK": 1024
+   },
+   "div16": [
+    "X",
+    "INV",
+    "Q",
+    "S",
+    "K",
+    "s_xm",
+    "s_qm"
+   ],
+   "expect": {
+    "K": 9216,
+    "s_xm": 9216,
+    "s_qm": 9216
+   },
+   "grid": "M",
+   "params": [
+    {
+     "name": "X",
+     "type": "*bf16"
+    },
+    {
+     "name": "INV",
+     "type": "*fp32"
+    },
+    {
+     "name": "Q",
+     "type": "*i8"
+    },
+    {
+     "name": "S",
+     "type": "*fp32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_xm",
+     "type": "i32"
+    },
+    {
+     "name": "s_qm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "act|bf16|K9216|inv1",
+   "kernel": "act_quant",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "HAS_INV": 1,
+    "BLOCK": 1024
+   },
+   "div16": [
+    "X",
+    "INV",
+    "Q",
+    "S",
+    "K",
+    "s_xm",
+    "s_qm"
+   ],
+   "expect": {
+    "K": 9216,
+    "s_xm": 9216,
+    "s_qm": 9216
+   },
+   "grid": "M",
+   "params": [
+    {
+     "name": "X",
+     "type": "*bf16"
+    },
+    {
+     "name": "INV",
+     "type": "*fp32"
+    },
+    {
+     "name": "Q",
+     "type": "*i8"
+    },
+    {
+     "name": "S",
+     "type": "*fp32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_xm",
+     "type": "i32"
+    },
+    {
+     "name": "s_qm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N32|K2560|bias0|bf16|m160",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 32,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 32,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 32
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N32|K2560|bias0|bf16|m161",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 32,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 32,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 32
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N1024|K2560|bias0|bf16|m160",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 1024,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 1024
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N1024|K2560|bias0|bf16|m161",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 1024,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 1024
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K4096|bias0|bf16|m160",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 4096,
+    "s_am": 4096,
+    "s_bn": 4096,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K4096|bias0|bf16|m161",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 4096,
+    "s_am": 4096,
+    "s_bn": 4096,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K9216|bias0|bf16|m160",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 256,
+    "BK": 64,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 9216,
+    "s_am": 9216,
+    "s_bn": 9216,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K9216|bias0|bf16|m161",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 256,
+    "BK": 64,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 9216,
+    "s_am": 9216,
+    "s_bn": 9216,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N4096|K2560|bias0|bf16|m160",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 64,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 4096,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 4096
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N4096|K2560|bias0|bf16|m161",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 64,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 4096,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 4096
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N8192|K2560|bias0|bf16|m160",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 256,
+    "BK": 64,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 8192,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 8192
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N8192|K2560|bias0|bf16|m161",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 256,
+    "BK": 64,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 8192,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 8192
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N9216|K2560|bias0|bf16|m160",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 64,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 9216,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 9216
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N9216|K2560|bias0|bf16|m161",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 64,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 9216,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 9216
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "attn|bf16|hd256|hq16|r4|s0.0625|m16",
+   "kernel": "attn_fwd",
+   "num_warps": 8,
+   "num_stages": 2,
+   "constexprs": {
+    "HQ": 16,
+    "REP": 4,
+    "D": 256,
+    "QK_SCALE": 0.09016844005556021,
+    "BM": 16,
+    "BN": 64
+   },
+   "div16": [
+    "Q",
+    "K",
+    "V",
+    "O",
+    "s_qb",
+    "s_qh",
+    "s_qm",
+    "s_kb",
+    "s_kh",
+    "s_kn",
+    "s_vb",
+    "s_vh",
+    "s_vn",
+    "s_ob",
+    "s_oh",
+    "s_om"
+   ],
+   "expect": {},
+   "grid": "cdiv(n_q,BM)*B*HQ",
+   "params": [
+    {
+     "name": "Q",
+     "type": "*bf16"
+    },
+    {
+     "name": "K",
+     "type": "*bf16"
+    },
+    {
+     "name": "V",
+     "type": "*bf16"
+    },
+    {
+     "name": "O",
+     "type": "*bf16"
+    },
+    {
+     "name": "n_q",
+     "type": "i32"
+    },
+    {
+     "name": "n_k",
+     "type": "i32"
+    },
+    {
+     "name": "s_qb",
+     "type": "i32"
+    },
+    {
+     "name": "s_qh",
+     "type": "i32"
+    },
+    {
+     "name": "s_qm",
+     "type": "i32"
+    },
+    {
+     "name": "s_kb",
+     "type": "i32"
+    },
+    {
+     "name": "s_kh",
+     "type": "i32"
+    },
+    {
+     "name": "s_kn",
+     "type": "i32"
+    },
+    {
+     "name": "s_vb",
+     "type": "i32"
+    },
+    {
+     "name": "s_vh",
+     "type": "i32"
+    },
+    {
+     "name": "s_vn",
+     "type": "i32"
+    },
+    {
+     "name": "s_ob",
+     "type": "i32"
+    },
+    {
+     "name": "s_oh",
+     "type": "i32"
+    },
+    {
+     "name": "s_om",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "attn|bf16|hd256|hq16|r4|s0.0625|m64",
+   "kernel": "attn_fwd",
+   "num_warps": 8,
+   "num_stages": 1,
+   "constexprs": {
+    "HQ": 16,
+    "REP": 4,
+    "D": 256,
+    "QK_SCALE": 0.09016844005556021,
+    "BM": 64,
+    "BN": 64
+   },
+   "div16": [
+    "Q",
+    "K",
+    "V",
+    "O",
+    "s_qb",
+    "s_qh",
+    "s_qm",
+    "s_kb",
+    "s_kh",
+    "s_kn",
+    "s_vb",
+    "s_vh",
+    "s_vn",
+    "s_ob",
+    "s_oh",
+    "s_om"
+   ],
+   "expect": {},
+   "grid": "cdiv(n_q,BM)*B*HQ",
+   "params": [
+    {
+     "name": "Q",
+     "type": "*bf16"
+    },
+    {
+     "name": "K",
+     "type": "*bf16"
+    },
+    {
+     "name": "V",
+     "type": "*bf16"
+    },
+    {
+     "name": "O",
+     "type": "*bf16"
+    },
+    {
+     "name": "n_q",
+     "type": "i32"
+    },
+    {
+     "name": "n_k",
+     "type": "i32"
+    },
+    {
+     "name": "s_qb",
+     "type": "i32"
+    },
+    {
+     "name": "s_qh",
+     "type": "i32"
+    },
+    {
+     "name": "s_qm",
+     "type": "i32"
+    },
+    {
+     "name": "s_kb",
+     "type": "i32"
+    },
+    {
+     "name": "s_kh",
+     "type": "i32"
+    },
+    {
+     "name": "s_kn",
+     "type": "i32"
+    },
+    {
+     "name": "s_vb",
+     "type": "i32"
+    },
+    {
+     "name": "s_vh",
+     "type": "i32"
+    },
+    {
+     "name": "s_vn",
+     "type": "i32"
+    },
+    {
+     "name": "s_ob",
+     "type": "i32"
+    },
+    {
+     "name": "s_oh",
+     "type": "i32"
+    },
+    {
+     "name": "s_om",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N32|K2560|bias0|bf16|m160|cl",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 32,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 32,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 32
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N32|K2560|bias0|bf16|m161|cl",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 32,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 32,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 32
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N1024|K2560|bias0|bf16|m160|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 1024,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 1024
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N1024|K2560|bias0|bf16|m161|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 1024,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 1024
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N1024|K2560|bias0|bf16|m160|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 1024,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 1024
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N1024|K2560|bias0|bf16|m161|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 1024,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 1024
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N1024|K2560|bias0|bf16|m160|cn",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 1024,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 1024
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N1024|K2560|bias0|bf16|m161|cn",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 1024,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 1024
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N1024|K2560|bias0|bf16|m160|cl",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 1024,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 1024
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N1024|K2560|bias0|bf16|m161|cl",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 1024,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 1024
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N4096|K2560|bias0|bf16|m160|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 32,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 4096,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 4096
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N4096|K2560|bias0|bf16|m161|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 32,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 4096,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 4096
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N4096|K2560|bias0|bf16|m160|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 4096,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 4096
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N4096|K2560|bias0|bf16|m161|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 4096,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 4096
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N4096|K2560|bias0|bf16|m160|cn",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 4096,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 4096
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N4096|K2560|bias0|bf16|m161|cn",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 4096,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 4096
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N4096|K2560|bias0|bf16|m160|cl",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 4096,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 4096
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N4096|K2560|bias0|bf16|m161|cl",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 4096,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 4096
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N8192|K2560|bias0|bf16|m160|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 8192,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 8192
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N8192|K2560|bias0|bf16|m161|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 8192,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 8192
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N8192|K2560|bias0|bf16|m160|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 8192,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 8192
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N8192|K2560|bias0|bf16|m161|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 8192,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 8192
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N8192|K2560|bias0|bf16|m160|cn",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 8192,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 8192
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N8192|K2560|bias0|bf16|m161|cn",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 8192,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 8192
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N9216|K2560|bias0|bf16|m160|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 9216,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 9216
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N9216|K2560|bias0|bf16|m161|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 9216,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 9216
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N9216|K2560|bias0|bf16|m160|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 9216,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 9216
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N9216|K2560|bias0|bf16|m161|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 9216,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 9216
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N9216|K2560|bias0|bf16|m160|cn",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 9216,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 9216
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N9216|K2560|bias0|bf16|m161|cn",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 9216,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 9216
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N9216|K2560|bias0|bf16|m160|cl",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 9216,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 9216
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N9216|K2560|bias0|bf16|m161|cl",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 9216,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 9216
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K4096|bias0|bf16|m160|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 32,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 4096,
+    "s_am": 4096,
+    "s_bn": 4096,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K4096|bias0|bf16|m161|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 32,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 4096,
+    "s_am": 4096,
+    "s_bn": 4096,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K4096|bias0|bf16|m160|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 4096,
+    "s_am": 4096,
+    "s_bn": 4096,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K4096|bias0|bf16|m161|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 4096,
+    "s_am": 4096,
+    "s_bn": 4096,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K4096|bias0|bf16|m160|cl",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 4096,
+    "s_am": 4096,
+    "s_bn": 4096,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K4096|bias0|bf16|m161|cl",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 4096,
+    "s_am": 4096,
+    "s_bn": 4096,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K9216|bias0|bf16|m160|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 9216,
+    "s_am": 9216,
+    "s_bn": 9216,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K9216|bias0|bf16|m161|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 9216,
+    "s_am": 9216,
+    "s_bn": 9216,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K9216|bias0|bf16|m160|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 9216,
+    "s_am": 9216,
+    "s_bn": 9216,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K9216|bias0|bf16|m161|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 9216,
+    "s_am": 9216,
+    "s_bn": 9216,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K9216|bias0|bf16|m160|cn",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 9216,
+    "s_am": 9216,
+    "s_bn": 9216,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K9216|bias0|bf16|m161|cn",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 9216,
+    "s_am": 9216,
+    "s_bn": 9216,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K9216|bias0|bf16|m160|cl",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 9216,
+    "s_am": 9216,
+    "s_bn": 9216,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2560|K9216|bias0|bf16|m161|cl",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2560,
+    "K": 9216,
+    "s_am": 9216,
+    "s_bn": 9216,
+    "s_cm": 2560
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2048|K2560|bias0|bf16|m160|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 32,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2048,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 2048
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2048|K2560|bias0|bf16|m161|cs",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 32,
+    "BN": 64,
+    "BK": 256,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2048,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 2048
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2048|K2560|bias0|bf16|m160|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2048,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 2048
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2048|K2560|bias0|bf16|m161|cm",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 4,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 64,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2048,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 2048
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2048|K2560|bias0|bf16|m160|cn",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2048,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 2048
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2048|K2560|bias0|bf16|m161|cn",
+   "kernel": "mm_i8",
+   "num_warps": 4,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 64,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2048,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 2048
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2048|K2560|bias0|bf16|m160|cl",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm"
+   ],
+   "expect": {
+    "N": 2048,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 2048
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  },
+  {
+   "key": "mm|N2048|K2560|bias0|bf16|m161|cl",
+   "kernel": "mm_i8",
+   "num_warps": 8,
+   "num_stages": 3,
+   "constexprs": {
+    "s_ak": 1,
+    "s_bk": 1,
+    "s_cn": 1,
+    "HAS_BIAS": 0,
+    "BM": 128,
+    "BN": 128,
+    "BK": 128,
+    "GROUP_M": 8
+   },
+   "div16": [
+    "A",
+    "B",
+    "SA",
+    "SB",
+    "BIAS",
+    "C",
+    "N",
+    "K",
+    "s_am",
+    "s_bn",
+    "s_cm",
+    "M"
+   ],
+   "expect": {
+    "N": 2048,
+    "K": 2560,
+    "s_am": 2560,
+    "s_bn": 2560,
+    "s_cm": 2048
+   },
+   "grid": "cdiv(M,BM)*cdiv(N,BN)",
+   "params": [
+    {
+     "name": "A",
+     "type": "*i8"
+    },
+    {
+     "name": "B",
+     "type": "*i8"
+    },
+    {
+     "name": "SA",
+     "type": "*fp32"
+    },
+    {
+     "name": "SB",
+     "type": "*fp32"
+    },
+    {
+     "name": "BIAS",
+     "type": "*fp32"
+    },
+    {
+     "name": "C",
+     "type": "*bf16"
+    },
+    {
+     "name": "M",
+     "type": "i32"
+    },
+    {
+     "name": "N",
+     "type": "i32"
+    },
+    {
+     "name": "K",
+     "type": "i32"
+    },
+    {
+     "name": "s_am",
+     "type": "i32"
+    },
+    {
+     "name": "s_bn",
+     "type": "i32"
+    },
+    {
+     "name": "s_cm",
+     "type": "i32"
+    }
+   ]
+  }
+ ]
+}

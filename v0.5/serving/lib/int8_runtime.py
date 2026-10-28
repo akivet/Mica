@@ -6,6 +6,7 @@ import types
 from pathlib import Path
 import torch
 from torch import nn
+
 ALPHA = 0.5
 STATS = 's.pt'
 LOAD_PEAK = {'int8': 8800000000.0, 'bf16': 9000000000.0}
@@ -15,7 +16,7 @@ RESERVE = 0.95
 MIN_CONTEXT = 4096
 CONTEXT_STEP = 1024
 MIN_VRAM = int(max(LOAD_PEAK['int8'], STEADY['int8'] + MIN_CONTEXT * PER_TOKEN) / RESERVE)
-CONVERT_FREE = 512 * 2 ** 20
+CONVERT_FREE = 512 * 2**20
 DUAL_EXTRA = 3400000000.0
 PRECISION = {'mode': 'int8'}
 LOAD_PEAK['file'] = 5000000000.0
@@ -24,6 +25,7 @@ LEAN_GRAPH_MAX = 512
 MIN_SERVED = 8192
 MIN_VRAM_FILE = int(max(LOAD_PEAK['file'], STEADY_LEAN + MIN_CONTEXT * PER_TOKEN) / RESERVE)
 LIMIT = {'bytes': 0}
+
 
 def context_cap(total_bytes, precision='int8', dual=False, source='convert', profile='standard'):
     if source == 'file' and precision == 'int8':
@@ -40,6 +42,7 @@ def context_cap(total_bytes, precision='int8', dual=False, source='convert', pro
     n = int((budget - steady) / PER_TOKEN) // CONTEXT_STEP * CONTEXT_STEP
     return min(32768, n) if n >= MIN_CONTEXT else 0
 
+
 def memory_plan(total_bytes, precision='int8', dual=False, source='convert'):
     std = context_cap(total_bytes, precision, dual, source)
     if source != 'file' or precision != 'int8' or std >= MIN_SERVED:
@@ -47,13 +50,16 @@ def memory_plan(total_bytes, precision='int8', dual=False, source='convert'):
     lean = context_cap(total_bytes, precision, False, source, 'lean')
     return ('lean', lean) if lean > std else ('standard', std)
 
+
 def _cuda(device):
     dev = torch.device(device)
     return torch.device('cuda', torch.cuda.current_device()) if dev.index is None else dev
 
+
 def total_memory(device):
     real = torch.cuda.get_device_properties(_cuda(device)).total_memory
     return min(real, LIMIT['bytes']) if LIMIT['bytes'] else real
+
 
 def limit_memory(device, limit_bytes):
     dev = _cuda(device)
@@ -61,30 +67,36 @@ def limit_memory(device, limit_bytes):
     LIMIT['bytes'] = int(min(real, limit_bytes))
     torch.cuda.set_per_process_memory_fraction(LIMIT['bytes'] / real, dev)
     return LIMIT['bytes']
+
+
 _MODS = {}
+
 
 def _mods():
     if not _MODS:
-        import m1rrs8kpf3hjn4ltqozb9 as _vbetmnfvsyrppuql03kv3
-        import m4q417rrk96tf7req4il7 as aot
-        _MODS['m'] = (_vbetmnfvsyrppuql03kv3, aot)
+        import int8_quant as wq
+        import int8_kernels as aot
+
+        _MODS['m'] = (wq, aot)
     return _MODS['m']
+
 
 def name_key(name):
     return int.from_bytes(hashlib.sha256(name.encode('utf-8')).digest()[:8], 'little', signed=True)
 
-class _Stats:
 
+class _Stats:
     def __init__(self, keys, offsets, values):
         self._at = {int(k): (int(offsets[i]), int(offsets[i + 1])) for i, k in enumerate(keys.tolist())}
         self._values = values
 
     def get(self, name):
         hit = self._at.get(name_key(name))
-        return None if hit is None else self._values[hit[0]:hit[1]]
+        return None if hit is None else self._values[hit[0] : hit[1]]
 
     def __len__(self):
         return len(self._at)
+
 
 def load_stats(path):
     data = torch.load(str(path), map_location='cpu', weights_only=True)
@@ -92,11 +104,12 @@ def load_stats(path):
         return data['amax']
     return _Stats(data['h'], data['o'], data['v'])
 
-class QLinear(nn.Module):
 
+class QLinear(nn.Module):
     def __init__(self, linear, smooth=None, backend='aot', keep_bf16=False):
         super().__init__()
-        import m1rrs8kpf3hjn4ltqozb9 as _vbetmnfvsyrppuql03kv3
+        import int8_quant as wq
+
         w = linear.weight.detach()
         self.register_buffer('w16', w.contiguous() if keep_bf16 else None)
         self.in_features, self.out_features = (w.shape[1], w.shape[0])
@@ -108,7 +121,7 @@ class QLinear(nn.Module):
             self.register_buffer('inv_smooth', (1.0 / smooth).contiguous())
         else:
             self.inv_smooth = None
-        q, s = _vbetmnfvsyrppuql03kv3.quant_weight(wf, 'int8')
+        q, s = wq.quant_weight(wf, 'int8')
         self.register_buffer('qweight', q.contiguous())
         self.register_buffer('wscale', s.contiguous())
         self.register_buffer('bias', None if linear.bias is None else linear.bias.detach().float().contiguous())
@@ -132,25 +145,26 @@ class QLinear(nn.Module):
 
     @property
     def weight(self):
-        import m1rrs8kpf3hjn4ltqozb9 as _vbetmnfvsyrppuql03kv3
-        w = _vbetmnfvsyrppuql03kv3.dequant(self.qweight, self.wscale)
+        import int8_quant as wq
+
+        w = wq.dequant(self.qweight, self.wscale)
         return (w * self.inv_smooth[None, :] if self.inv_smooth is not None else w).to(self.out_dtype)
 
     def rows_forward(self, x, ranges):
         if self.w16 is not None and PRECISION['mode'] == 'bf16' or self.backend != 'aot':
             return None
-        _vbetmnfvsyrppuql03kv3, aot = _mods()
+        wq, aot = _mods()
         shape = x.shape
         x2 = x.reshape(-1, shape[-1])
         r = aot.act_quant(x2.contiguous(), self.inv_smooth)
-        qx, sx = r if r is not None else _vbetmnfvsyrppuql03kv3.quant_act(x2, self.inv_smooth, 'int8')
+        qx, sx = r if r is not None else wq.quant_act(x2, self.inv_smooth, 'int8')
         outs = []
         for lo, hi in ranges:
             w, s = (self.qweight[lo:hi], self.wscale[lo:hi])
             b = None if self.bias is None else self.bias[lo:hi]
             y = aot.mm_i8(qx, sx, w, s, b, self.out_dtype)
             if y is None:
-                y = _vbetmnfvsyrppuql03kv3.torch_int_mm(qx, w).float() * sx[:, None] * s[None, :]
+                y = wq.torch_int_mm(qx, w).float() * sx[:, None] * s[None, :]
                 y = (y if b is None else y + b).to(self.out_dtype)
             outs.append(y.reshape(*shape[:-1], hi - lo))
         return outs
@@ -158,36 +172,39 @@ class QLinear(nn.Module):
     def forward(self, x):
         if self.w16 is not None and PRECISION['mode'] == 'bf16':
             return nn.functional.linear(x, self.w16, None if self.bias is None else self.bias.to(self.w16.dtype))
-        _vbetmnfvsyrppuql03kv3, aot = _mods()
+        wq, aot = _mods()
         shape = x.shape
         x2 = x.reshape(-1, shape[-1])
         if x2.shape[0] == 0:
             return x.new_zeros(*shape[:-1], self.out_features, dtype=self.out_dtype)
         if self.backend == 'aot':
             r = aot.act_quant(x2.contiguous(), self.inv_smooth)
-            qx, sx = r if r is not None else _vbetmnfvsyrppuql03kv3.quant_act(x2, self.inv_smooth, 'int8')
+            qx, sx = r if r is not None else wq.quant_act(x2, self.inv_smooth, 'int8')
             y = aot.mm_i8(qx, sx, self.qweight, self.wscale, self.bias, self.out_dtype)
             if y is not None:
                 return y.reshape(*shape[:-1], self.out_features)
-            y = _vbetmnfvsyrppuql03kv3.torch_int_mm(qx, self.qweight).float() * sx[:, None] * self.wscale[None, :]
+            y = wq.torch_int_mm(qx, self.qweight).float() * sx[:, None] * self.wscale[None, :]
         else:
-            qx, sx = _vbetmnfvsyrppuql03kv3.quant_act(x2, self.inv_smooth, 'int8')
-            y = _vbetmnfvsyrppuql03kv3.int_gemm_exact(qx, self.qweight).float() * sx[:, None] * self.wscale[None, :]
+            qx, sx = wq.quant_act(x2, self.inv_smooth, 'int8')
+            y = wq.int_gemm_exact(qx, self.qweight).float() * sx[:, None] * self.wscale[None, :]
         if self.bias is not None:
             y = y + self.bias
         return y.to(self.out_dtype).reshape(*shape[:-1], self.out_features)
 
+
 def convert(body, stats, backend='aot', alpha=ALPHA, keep_bf16=False):
-    import m1rrs8kpf3hjn4ltqozb9 as _vbetmnfvsyrppuql03kv3
+    import int8_quant as wq
+
     replaced = smoothed = 0
-    for qname, _vbax3oza79ngqrqvpavhw, attr, child in _vbetmnfvsyrppuql03kv3.target_linears(body, range(len(body.layers)), _vbetmnfvsyrppuql03kv3.GROUPS['all']):
+    for qname, parent, attr, child in wq.target_linears(body, range(len(body.layers)), wq.GROUPS['all']):
         amax = stats.get(qname) if stats is not None else None
-        smooth = None if amax is None else _vbetmnfvsyrppuql03kv3.smooth_factors(amax, child.weight.detach(), alpha)
-        setattr(_vbax3oza79ngqrqvpavhw, attr, QLinear(child, smooth, backend, keep_bf16=keep_bf16))
+        smooth = None if amax is None else wq.smooth_factors(amax, child.weight.detach(), alpha)
+        setattr(parent, attr, QLinear(child, smooth, backend, keep_bf16=keep_bf16))
         replaced += 1
         smoothed += smooth is not None
         del child
     return (replaced, smoothed)
+
 
 def decide(device, request='auto', source='convert'):
     if request == 'off':
@@ -199,10 +216,11 @@ def decide(device, request='auto', source='convert'):
         dev = torch.device('cuda', torch.cuda.current_device())
     need = MIN_VRAM_FILE if source == 'file' else MIN_VRAM
     if total_memory(dev) < need:
-        return (False, 'memory below %.1f GiB' % (need / 2 ** 30))
+        return (False, 'memory below %.1f GiB' % (need / 2**30))
     if torch.cuda.get_device_capability(dev) < (8, 0):
         return (False, 'compute capability below 8.0')
-    import m4q417rrk96tf7req4il7 as aot
+    import int8_kernels as aot
+
     ok, _ = aot.available(dev)
     if not ok:
         return (False, 'no kernels for this gpu')
@@ -210,12 +228,14 @@ def decide(device, request='auto', source='convert'):
         return (False, 'statistics missing')
     return (True, 'sm_%d%d' % torch.cuda.get_device_capability(dev))
 
+
 def free_ok(device, need=CONVERT_FREE):
     dev = torch.device(device)
     if dev.type != 'cuda':
         return True
     free, _ = torch.cuda.mem_get_info(dev)
     return free >= need
+
 
 def apply(body, device, request='auto', backend='aot', stats=None, dual=False, selftest=None):
     on, why = decide(device, request) if backend == 'aot' else (True, backend)
@@ -225,7 +245,12 @@ def apply(body, device, request='auto', backend='aot', stats=None, dual=False, s
     if not on:
         selftest_cancel(selftest)
         return report
-    on, why = _verified(report, selftest if selftest is not None else selftest_start(body_shapes(body), device, backend), device, backend)
+    on, why = _verified(
+        report,
+        selftest if selftest is not None else selftest_start(body_shapes(body), device, backend),
+        device,
+        backend,
+    )
     if not on:
         report.update(precision='bf16', reason=why)
         return report
@@ -234,7 +259,8 @@ def apply(body, device, request='auto', backend='aot', stats=None, dual=False, s
             dual = False
             report['dual_refused'] = 'memory'
     report['dual'] = bool(dual)
-    import m4q417rrk96tf7req4il7 as aot
+    import int8_kernels as aot
+
     if stats is None and backend == 'aot':
         stats = load_stats(aot.kernel_dir() / STATS)
     report['linears'], report['smoothed'] = convert(body, stats, backend, keep_bf16=dual)
@@ -242,77 +268,105 @@ def apply(body, device, request='auto', backend='aot', stats=None, dual=False, s
         torch.cuda.empty_cache()
     return report
 
+
 def _verified(report, handle, device, backend):
     test = selftest_finish(handle)
     report['selftest'] = test
     if not test['ok']:
         return (False, 'self-test: ' + test['reason'])
     if backend == 'aot':
-        import m4q417rrk96tf7req4il7 as aot
+        import int8_kernels as aot
+
         try:
             report['kernels'] = aot.preload(torch.device(device))
         except Exception as exc:
             return (False, ('kernel load: %s: %s' % (type(exc).__name__, exc))[:300])
         aot.ATTN['enabled'] = bool(test.get('attn', {}).get('ok'))
     return (True, report['reason'])
+
+
 SELFTEST_ROWS = (3, 48, 200, 608, 1500)
 SELFTEST_TOL = 1.05
-_v6n9tatg1ke1u6s9gtljd = 20261022
+SELFTEST_SEED = 20261022
 SELFTEST_TIMEOUT = 300
 _CHILD = 'import json, sys\nsys.path[:0] = json.loads(sys.argv[1])\nimport importlib\nm = importlib.import_module(sys.argv[2])\nr = m.selftest([tuple(s) for s in json.loads(sys.argv[3])], sys.argv[4], sys.argv[5])\nsys.stdout.write("\\n" + json.dumps(r) + "\\n")\n'
 
+
 def body_shapes(body):
-    import m1rrs8kpf3hjn4ltqozb9 as _vbetmnfvsyrppuql03kv3
-    return sorted({(c.out_features, c.in_features, c.bias is not None) for _, _, _, c in _vbetmnfvsyrppuql03kv3.target_linears(body, range(len(body.layers)), _vbetmnfvsyrppuql03kv3.GROUPS['all'])})
+    import int8_quant as wq
+
+    return sorted(
+        {
+            (c.out_features, c.in_features, c.bias is not None)
+            for _, _, _, c in wq.target_linears(body, range(len(body.layers)), wq.GROUPS['all'])
+        }
+    )
+
 
 def _header(path):
     with open(path, 'rb') as f:
         n = int.from_bytes(f.read(8), 'little')
         return json.loads(f.read(n).decode('utf-8'))
 
+
 def linear_shapes(folder):
     import re
-    import m1rrs8kpf3hjn4ltqozb9 as _vbetmnfvsyrppuql03kv3
+    import int8_quant as wq
+
     folder = Path(folder)
-    leaves = set(_vbetmnfvsyrppuql03kv3.GROUPS['all'])
+    leaves = set(wq.GROUPS['all'])
     layer = re.compile('(?:^|\\.)layers\\.\\d+\\.')
     if (folder / FILE).is_file():
         files, leaf = ([folder / FILE], 'qweight')
     else:
         index = folder / 'model.safetensors.index.json'
-        names = sorted(set(json.loads(index.read_text(encoding='utf-8'))['weight_map'].values())) if index.is_file() else ['model.safetensors']
+        names = (
+            sorted(set(json.loads(index.read_text(encoding='utf-8'))['weight_map'].values()))
+            if index.is_file()
+            else ['model.safetensors']
+        )
         files, leaf = ([folder / n for n in names if (folder / n).is_file()], 'weight')
     out = set()
     for path in files:
         head = _header(path)
         for key, info in head.items():
             parts = key.split('.')
-            if key == '__metadata__' or parts[-1] != leaf or len(parts) < 2 or (parts[-2] not in leaves) or (not layer.search(key)) or key.startswith('mtp') or (len(info['shape']) != 2):
+            if (
+                key == '__metadata__'
+                or parts[-1] != leaf
+                or len(parts) < 2
+                or (parts[-2] not in leaves)
+                or (not layer.search(key))
+                or key.startswith('mtp')
+                or (len(info['shape']) != 2)
+            ):
                 continue
             n, k = info['shape']
-            out.add((n, k, key[:-len(leaf)] + 'bias' in head))
+            out.add((n, k, key[: -len(leaf)] + 'bias' in head))
     try:
         cfg = json.loads((folder / 'config.json').read_text(encoding='utf-8'))
         cfg = cfg.get('text_config', cfg)
-        hidden, _vae5z11bsktmjgjqwnorm = (cfg['hidden_size'], cfg['linear_num_key_heads'] * cfg['linear_key_head_dim'])
+        hidden, kd = (cfg['hidden_size'], cfg['linear_num_key_heads'] * cfg['linear_key_head_dim'])
         vd = cfg['linear_num_value_heads'] * cfg['linear_value_head_dim']
-        if (2 * _vae5z11bsktmjgjqwnorm + vd, hidden, False) in out:
-            out |= {(_vae5z11bsktmjgjqwnorm, hidden, False), (vd, hidden, False)}
+        if (2 * kd + vd, hidden, False) in out:
+            out |= {(kd, hidden, False), (vd, hidden, False)}
     except (OSError, KeyError, ValueError):
         pass
     return sorted(out)
 
+
 def _row_rel(a, b):
     return float(((a - b).norm(dim=-1) / b.norm(dim=-1).clamp_min(1e-30)).max())
+
 
 def selftest(shapes, device, backend='aot', rows=SELFTEST_ROWS):
     t0 = time.perf_counter()
     out = {'ok': False, 'reason': '', 'checked': 0, 'worst_ratio': 0.0}
     try:
-        _vbetmnfvsyrppuql03kv3, aot = _mods()
+        wq, aot = _mods()
         dev = torch.device(device)
         launches, misses = (aot.STATS['launch'], sum(aot.STATS['fallback'].values()))
-        g = getattr(torch.Generator(), ''.join(map(chr, (109, 97, 110, 117, 97, 108, 95, 115, 101, 101, 100))))(_v6n9tatg1ke1u6s9gtljd)
+        g = getattr(torch.Generator(), 'manual_seed')(SELFTEST_SEED)
         per_shape = {}
         for n, k, has_bias in shapes:
             n, k = (int(n), int(k))
@@ -321,26 +375,34 @@ def selftest(shapes, device, backend='aot', rows=SELFTEST_ROWS):
             amax[::61] *= 25.0
             b = (torch.randn(n, generator=g) * 0.1).to(torch.bfloat16).to(dev) if has_bias else None
             lin = types.SimpleNamespace(weight=w.to(dev), bias=b)
-            for smooth in (_vbetmnfvsyrppuql03kv3.smooth_factors(amax, w, ALPHA), None):
+            for smooth in (wq.smooth_factors(amax, w, ALPHA), None):
                 q = QLinear(lin, smooth, backend)
-                wd = _vbetmnfvsyrppuql03kv3.dequant(q.qweight, q.wscale)
+                wd = wq.dequant(q.qweight, q.wscale)
                 if q.inv_smooth is not None:
                     wd = wd * q.inv_smooth[None, :]
                 for m in rows:
                     x = (torch.randn(m, k, generator=g) * amax / 3).to(torch.bfloat16).to(dev)
-                    l0, _v5wz3n1fab22ol5uhwgzb = (aot.STATS['launch'], dict(aot.STATS['fallback']))
+                    l0, engine = (aot.STATS['launch'], dict(aot.STATS['fallback']))
                     y = q(x).float()
                     launched = aot.STATS['launch'] - l0
                     key = 'N%d K%d' % (n, k)
                     per_shape[key] = per_shape.get(key, 0) + launched
                     if backend == 'aot' and launched < 2:
-                        miss = {r: c - _v5wz3n1fab22ol5uhwgzb.get(r, 0) for r, c in aot.STATS['fallback'].items() if c != _v5wz3n1fab22ol5uhwgzb.get(r, 0)}
-                        out['reason'] = 'N %d K %d M %d: %d cubin launches (expected 2), misses %s' % (n, k, m, launched, json.dumps(miss, sort_keys=True))
+                        miss = {
+                            r: c - engine.get(r, 0) for r, c in aot.STATS['fallback'].items() if c != engine.get(r, 0)
+                        }
+                        out['reason'] = 'N %d K %d M %d: %d cubin launches (expected 2), misses %s' % (
+                            n,
+                            k,
+                            m,
+                            launched,
+                            json.dumps(miss, sort_keys=True),
+                        )
                         out['per_shape'] = per_shape
                         return out
                     ref = x.float() @ wd.t()
-                    qx, sx = _vbetmnfvsyrppuql03kv3.quant_act(x, q.inv_smooth, 'int8')
-                    emu = _vbetmnfvsyrppuql03kv3.int_gemm_exact(qx, q.qweight).float() * sx[:, None] * q.wscale[None, :]
+                    qx, sx = wq.quant_act(x, q.inv_smooth, 'int8')
+                    emu = wq.int_gemm_exact(qx, q.qweight).float() * sx[:, None] * q.wscale[None, :]
                     if q.bias is not None:
                         ref, emu = (ref + q.bias, emu + q.bias)
                     emu = emu.to(q.out_dtype).float()
@@ -349,13 +411,24 @@ def selftest(shapes, device, backend='aot', rows=SELFTEST_ROWS):
                         out['reason'] = 'non-finite output (N %d, K %d, M %d)' % (n, k, m)
                         return out
                     if not err <= SELFTEST_TOL * noise:
-                        out['reason'] = 'N %d K %d M %d: error %.4g > %.2f x INT8 noise %.4g' % (n, k, m, err, SELFTEST_TOL, noise)
+                        out['reason'] = 'N %d K %d M %d: error %.4g > %.2f x INT8 noise %.4g' % (
+                            n,
+                            k,
+                            m,
+                            err,
+                            SELFTEST_TOL,
+                            noise,
+                        )
                         return out
                     out['worst_ratio'] = max(out['worst_ratio'], err / max(noise, 1e-30))
                     out['checked'] += 1
         if dev.type == 'cuda':
             torch.cuda.synchronize(dev)
-        out.update(launches=aot.STATS['launch'] - launches, misses=sum(aot.STATS['fallback'].values()) - misses, per_shape=per_shape)
+        out.update(
+            launches=aot.STATS['launch'] - launches,
+            misses=sum(aot.STATS['fallback'].values()) - misses,
+            per_shape=per_shape,
+        )
         if backend == 'aot' and (not out['launches'] or not all(per_shape.values())):
             out['reason'] = 'no cubin launched'
             return out
@@ -368,8 +441,11 @@ def selftest(shapes, device, backend='aot', rows=SELFTEST_ROWS):
     finally:
         out['seconds'] = round(time.perf_counter() - t0, 2)
     return out
+
+
 ATTN_CASES = ((1, 1, 37), (2, 13, 13), (1, 48, 200), (1, 130, 130), (2, 70, 333))
 ATTN_TOL = 0.02
+
 
 def attn_selftest(aot, dev, g):
     res = {'ok': False, 'checked': 0, 'worst': 0.0}
@@ -378,7 +454,12 @@ def attn_selftest(aot, dev, g):
         if not keys:
             res['reason'] = 'no attention cubin'
             return res
-        shapes = sorted({tuple((float(p[1:]) if p[0] == 's' else int(p.lstrip('hdqr')) for p in key.split('|')[2:6])) for key in keys})
+        shapes = sorted(
+            {
+                tuple((float(p[1:]) if p[0] == 's' else int(p.lstrip('hdqr')) for p in key.split('|')[2:6]))
+                for key in keys
+            }
+        )
         for d, hq, rep, scale in shapes:
             hk = hq // rep
             for b, n, s in ATTN_CASES:
@@ -406,6 +487,7 @@ def attn_selftest(aot, dev, g):
         res['reason'] = ('%s: %s' % (type(exc).__name__, exc))[:300]
     return res
 
+
 def selftest_start(shapes, device, backend='aot'):
     shapes = [list(map(int, s)) for s in shapes]
     dev = torch.device(device)
@@ -415,18 +497,39 @@ def selftest_start(shapes, device, backend='aot'):
             return handle
     return {'shapes': shapes, 'device': str(dev), 'backend': backend}
 
+
 def _spawn(shapes, device, backend, module=None):
     import subprocess
+
     search = list(getattr(sys, 'path'))
     try:
-        proc = subprocess.Popen([sys.executable, '-B', '-c', _CHILD, json.dumps(search), module or __name__, json.dumps(shapes), device, backend], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        proc = subprocess.Popen(
+            [
+                sys.executable,
+                '-B',
+                '-c',
+                _CHILD,
+                json.dumps(search),
+                module or __name__,
+                json.dumps(shapes),
+                device,
+                backend,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
     except OSError:
         return None
     return {'proc': proc, 't': time.perf_counter()}
+
+
 SELFTEST_CACHE = 'int8_selftest.json'
+
 
 def _driver_version():
     import ctypes
+
     for name in ('nvcuda.dll', 'libcuda.so.1', 'libcuda.so'):
         try:
             lib = ctypes.WinDLL(name) if name.endswith('.dll') else ctypes.CDLL(name)
@@ -437,6 +540,7 @@ def _driver_version():
             return int(v.value)
     return None
 
+
 def selftest_identity(shapes, device, backend='aot'):
     dev = torch.device(device)
     if backend != 'aot' or dev.type != 'cuda' or (not torch.cuda.is_available()):
@@ -444,7 +548,8 @@ def selftest_identity(shapes, device, backend='aot'):
     drv = _driver_version()
     if drv is None:
         return None
-    import m4q417rrk96tf7req4il7 as aot
+    import int8_kernels as aot
+
     props = torch.cuda.get_device_properties(_cuda(dev))
     cc = props.major * 10 + props.minor
     h, found = (hashlib.sha256(), False)
@@ -454,7 +559,17 @@ def selftest_identity(shapes, device, backend='aot'):
             found = True
     if not found:
         return None
-    return {'gpu': props.name, 'cc': cc, 'driver': drv, 'torch': str(torch.__version__), 'cuda': torch.version.cuda, 'kernels': h.hexdigest(), 'shapes': sorted((list(map(int, s)) for s in shapes)), 'backend': backend}
+    return {
+        'gpu': props.name,
+        'cc': cc,
+        'driver': drv,
+        'torch': str(torch.__version__),
+        'cuda': torch.version.cuda,
+        'kernels': h.hexdigest(),
+        'shapes': sorted((list(map(int, s)) for s in shapes)),
+        'backend': backend,
+    }
+
 
 def selftest_cached(directory, shapes, device, backend='aot'):
     if not directory:
@@ -471,6 +586,7 @@ def selftest_cached(directory, shapes, device, backend='aot'):
         return None
     return {'cached': dict(result, cached=True)}
 
+
 def selftest_remember(directory, shapes, device, result, backend='aot'):
     if not directory or not isinstance(result, dict) or (not result.get('ok')) or result.get('cached'):
         return False
@@ -484,6 +600,7 @@ def selftest_remember(directory, shapes, device, result, backend='aot'):
     tmp.replace(path)
     return True
 
+
 def selftest_finish(handle, timeout=SELFTEST_TIMEOUT):
     if handle is None:
         return {'ok': False, 'reason': 'not run'}
@@ -493,6 +610,7 @@ def selftest_finish(handle, timeout=SELFTEST_TIMEOUT):
     if proc is None:
         return selftest(handle['shapes'], handle['device'], handle['backend'])
     import subprocess
+
     try:
         stdout, stderr = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -502,21 +620,27 @@ def selftest_finish(handle, timeout=SELFTEST_TIMEOUT):
     lines = [s for s in (stdout or '').splitlines() if s.startswith('{')]
     if proc.returncode != 0 or not lines:
         tail = [s for s in (stderr or '').splitlines() if s.strip()]
-        return {'ok': False, 'reason': ('self-test process exit %s: %s' % (proc.returncode, tail[-1] if tail else ''))[:300]}
+        return {
+            'ok': False,
+            'reason': ('self-test process exit %s: %s' % (proc.returncode, tail[-1] if tail else ''))[:300],
+        }
     res = json.loads(lines[-1])
     res['wall_seconds'] = round(time.perf_counter() - handle['t'], 2)
     return res
+
 
 def selftest_cancel(handle):
     proc = (handle or {}).get('proc')
     if proc is not None and proc.poll() is None:
         proc.kill()
         proc.communicate()
+
+
 FILE = 'model-int8.safetensors'
 FILE_FORMAT = 'int8-w8a8/1'
 
-class _MetaParams:
 
+class _MetaParams:
     def __init__(self, dtype):
         self.dtype = dtype
 
@@ -529,6 +653,7 @@ class _MetaParams:
             if param is not None:
                 p = module._parameters[name]
                 module._parameters[name] = nn.Parameter(p.to('meta'), requires_grad=p.requires_grad)
+
         nn.Module.register_parameter = register
         torch.set_default_dtype(self.dtype)
         return self
@@ -538,11 +663,13 @@ class _MetaParams:
         torch.set_default_dtype(self._dtype)
         return False
 
+
 def load_model(folder, device, backend='aot'):
     from safetensors import safe_open
     from transformers import Qwen3_5ForCausalLM
     from transformers import Qwen3_5TextConfig
-    import m1rrs8kpf3hjn4ltqozb9 as _vbetmnfvsyrppuql03kv3
+    import int8_quant as wq
+
     folder, dev = (Path(folder), torch.device(device))
     config = Qwen3_5TextConfig.from_pretrained(folder, local_files_only=True)
     with _MetaParams(torch.bfloat16):
@@ -553,9 +680,20 @@ def load_model(folder, device, backend='aot'):
             raise ValueError('invalid_model')
         keys = set(f.keys())
         names = {id(m): n for n, m in model.named_modules()}
-        for _, _vbax3oza79ngqrqvpavhw, attr, child in _vbetmnfvsyrppuql03kv3.target_linears(model.model, range(len(model.model.layers)), _vbetmnfvsyrppuql03kv3.GROUPS['all']):
-            pre = names[id(_vbax3oza79ngqrqvpavhw)] + '.' + attr
-            setattr(_vbax3oza79ngqrqvpavhw, attr, QLinear.empty(child.in_features, child.out_features, torch.bfloat16, backend, smooth=pre + '.inv_smooth' in keys, bias=pre + '.bias' in keys))
+        for _, parent, attr, child in wq.target_linears(model.model, range(len(model.model.layers)), wq.GROUPS['all']):
+            pre = names[id(parent)] + '.' + attr
+            setattr(
+                parent,
+                attr,
+                QLinear.empty(
+                    child.in_features,
+                    child.out_features,
+                    torch.bfloat16,
+                    backend,
+                    smooth=pre + '.inv_smooth' in keys,
+                    bias=pre + '.bias' in keys,
+                ),
+            )
         ties = json.loads(meta.get('ties') or '{}')
         want = model.state_dict(keep_vars=True)
         if set(want) != keys | set(ties) or any((t not in keys for t in ties.values())):
@@ -587,13 +725,15 @@ def load_model(folder, device, backend='aot'):
         raise ValueError('invalid_model')
     return model
 
+
 def dequantize(body):
-    import m1rrs8kpf3hjn4ltqozb9 as _vbetmnfvsyrppuql03kv3
+    import int8_quant as wq
+
     n = 0
     for module in list(body.modules()):
         for attr, child in list(module.named_children()):
             if isinstance(child, QLinear):
-                w = _vbetmnfvsyrppuql03kv3.dequant(child.qweight, child.wscale)
+                w = wq.dequant(child.qweight, child.wscale)
                 if child.inv_smooth is not None:
                     w = w * child.inv_smooth[None, :]
                 lin = nn.Linear(child.in_features, child.out_features, bias=child.bias is not None, device='meta')
@@ -604,11 +744,17 @@ def dequantize(body):
                 n += 1
     return n
 
+
 def load_file(folder, device, request='auto', backend='aot', selftest=None, bf16_ok=False):
     on, why = decide(device, request, source='file') if backend == 'aot' else (True, backend)
     report = {'precision': 'int8', 'request': request, 'reason': why, 'source': 'file'}
     if on:
-        on, why = _verified(report, selftest if selftest is not None else selftest_start(linear_shapes(folder), device, backend), device, backend)
+        on, why = _verified(
+            report,
+            selftest if selftest is not None else selftest_start(linear_shapes(folder), device, backend),
+            device,
+            backend,
+        )
     else:
         selftest_cancel(selftest)
     if on:

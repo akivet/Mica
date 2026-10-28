@@ -216,8 +216,8 @@ The values show the response shape only.
 
 Optional per question: `"multi": true` (choice with several correct options), `"allow_cannot_grade": true` (score),
 `"abstain_threshold": <0..1>` (any type). Questions in one request share a single pass over the state; on an RTX 6000 Ada a 1k-token state with 4 questions takes about 70 ms. Malformed requests get HTTP 400 with a message.
-An input longer than the context is refused, never truncated: the GGUF server answers HTTP 422 with
-`{"error": {"type": "question_error", "code": "input_too_long", ...}}`, the INT8 server HTTP 400.
+An input longer than the context is refused, never truncated: both servers answer HTTP 422 with
+`{"error": {"type": "question_error", "code": "input_too_long", ...}}`.
 
 `GET /health` returns `{"status": "ok", "model": ...}`, plus `graphs_ready`, `graphs_queued` and `warming` while CUDA graphs are being captured. A rejected request (400) says why in `detail`.
 
@@ -267,6 +267,23 @@ python -m pytest tests
 
 The tests check request parsing, prompt rendering and response shapes against fixed cases. They need the tokenizer
 files but no GPU.
+
+## Source of the CUDA runtime
+
+Everything the INT8 server runs is in `v0.5/serving`:
+
+- `serve.py` loads `lib/`, the runtime as Python source (`lib/release_runtime.py` is the entry point; `lib/http_server.py`
+  the HTTP API, `lib/prefill_engine.py`, `lib/long_input.py` and `lib/fork.py` the prefill paths, `lib/int8_runtime.py`
+  and `lib/int8_quant.py` the INT8 weights, `lib/int8_kernels.py` the kernel launcher).
+- `lib/kernels/k<cc>.pt` hold the compiled GPU kernels per compute capability (zlib-compressed cubins and their launch
+  index), `lib/kernels/s.pt` the activation statistics for INT8, and `lib/kernels/profiles/*.z` the shipped Triton
+  kernel settings (zlib-compressed JSON).
+- `kernel_src/kernels.py` is the Triton source of those kernels (INT8 activation quantization, INT8 GEMM, attention) and
+  `kernel_src/specs/sm<cc>.json` the exact specializations. `kernel_src/build.py` rebuilds every container with Triton
+  3.3.1 on Linux without a GPU and compares it with the shipped one (`python build.py --out built --compare
+  ../lib/kernels`): the machine code is identical for sm_86, sm_89, sm_90, sm_100 and sm_120; on sm_80, four of the
+  76 shipped kernels were compiled in a different build environment from the same source and specs, and a rebuild
+  gives different machine code for those four.
 
 ## Earlier versions
 

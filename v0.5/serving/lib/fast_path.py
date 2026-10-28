@@ -6,8 +6,8 @@ import time
 from collections import OrderedDict
 from contextlib import contextmanager
 
-class LRUCache:
 
+class LRUCache:
     def __init__(self, max_entries=256, max_cost=None):
         if type(max_entries) is not int or max_entries < 0:
             raise ValueError('max_entries must be a non-negative integer')
@@ -52,10 +52,16 @@ class LRUCache:
 
     def stats(self):
         with self._lock:
-            return {'entries': len(self._data), 'cost': self._cost, 'hits': self.hits, 'misses': self.misses, 'evictions': self.evictions}
+            return {
+                'entries': len(self._data),
+                'cost': self._cost,
+                'hits': self.hits,
+                'misses': self.misses,
+                'evictions': self.evictions,
+            }
+
 
 class TokenizationCache:
-
     def __init__(self, fn, max_entries=256, max_chars=4000000):
         self.fn = fn
         self.cache = LRUCache(max_entries, max_chars)
@@ -76,12 +82,14 @@ class TokenizationCache:
     def stats(self):
         return self.cache.stats()
 
+
 def render_key(row, tokenizer_id=None):
     try:
         body = {k: v for k, v in row.items() if k != 'id'}
         return (tokenizer_id, json.dumps(body, sort_keys=True, ensure_ascii=False, default=repr))
     except (TypeError, ValueError):
         return None
+
 
 def common_token_prefix(sequences):
     sequences = [s for s in sequences]
@@ -94,23 +102,67 @@ def common_token_prefix(sequences):
             return index
     return shortest
 
+
 def template_prefix_length(token_lists, *, back_off=1, min_tokens=8):
     if len(token_lists) < 2:
         return 0
     n = common_token_prefix(token_lists) - back_off
     return n if n >= min_tokens else 0
-_PROBE_STATES = ('alpha', '1234', '\n', ' ', '\t', '\r', '\u3000', '\u200b', '한국어', '{"a": 1}', '<b>', '- item', '"q"', '$5')
+
+
+_PROBE_STATES = (
+    'alpha',
+    '1234',
+    '\n',
+    ' ',
+    '\t',
+    '\r',
+    '\u3000',
+    '\u200b',
+    '한국어',
+    '{"a": 1}',
+    '<b>',
+    '- item',
+    '"q"',
+    '$5',
+)
+
 
 def probe_rows(states=_PROBE_STATES):
     rows = []
     for index, state in enumerate(states):
         if index % 3 == 0:
-            rows.append({'id': f'p{index}', 'kind': 'noul', 'state': state, 'question': 'q?', 'candidates': [{'id': 'false', 'text': 'No'}, {'id': 'true', 'text': 'Yes'}]})
+            rows.append(
+                {
+                    'id': f'p{index}',
+                    'kind': 'noul',
+                    'state': state,
+                    'question': 'q?',
+                    'candidates': [{'id': 'false', 'text': 'No'}, {'id': 'true', 'text': 'Yes'}],
+                }
+            )
         elif index % 3 == 1:
-            rows.append({'id': f'p{index}', 'kind': 'choice', 'state': state, 'question': 'which?', 'candidates': [{'id': 'a', 'text': 'A'}, {'id': 'b', 'text': 'B'}]})
+            rows.append(
+                {
+                    'id': f'p{index}',
+                    'kind': 'choice',
+                    'state': state,
+                    'question': 'which?',
+                    'candidates': [{'id': 'a', 'text': 'A'}, {'id': 'b', 'text': 'B'}],
+                }
+            )
         else:
-            rows.append({'id': f'p{index}', 'kind': 'score', 'state': state, 'question': 'how much?', 'candidates': [{'id': '0', 'text': 'Low'}, {'id': '1', 'text': 'High'}]})
+            rows.append(
+                {
+                    'id': f'p{index}',
+                    'kind': 'score',
+                    'state': state,
+                    'question': 'how much?',
+                    'candidates': [{'id': '0', 'text': 'Low'}, {'id': '1', 'text': 'High'}],
+                }
+            )
     return rows
+
 
 class PrefixEntry:
     __slots__ = ('tokens', 'identity', 'seq', 'pinned', 'tick')
@@ -121,8 +173,8 @@ class PrefixEntry:
     def __repr__(self):
         return f'PrefixEntry(seq={self.seq}, n={len(self.tokens)}, pinned={self.pinned})'
 
-class PrefixSlotCache:
 
+class PrefixSlotCache:
     def __init__(self, seq_ids):
         self.seq_ids = list(seq_ids)
         self.entries = []
@@ -183,22 +235,44 @@ class PrefixSlotCache:
         self.entries.clear()
 
     def stats(self):
-        return {'entries': [(e.seq, len(e.tokens), e.pinned) for e in self.entries], 'hits': self.hits, 'misses': self.misses, 'builds': self.builds, 'evictions': self.evictions, 'invalid': self.invalid}
-STAGES = ('parse', 'render', 'tokenize', 'prefix_cache', 'prefill', 'decode', '_v67ub3xu71brsc1w0l52j', 'cpu_tool', 'reread', 'respond')
+        return {
+            'entries': [(e.seq, len(e.tokens), e.pinned) for e in self.entries],
+            'hits': self.hits,
+            'misses': self.misses,
+            'builds': self.builds,
+            'evictions': self.evictions,
+            'invalid': self.invalid,
+        }
+
+
+STAGES = (
+    'parse',
+    'render',
+    'tokenize',
+    'prefix_cache',
+    'prefill',
+    'decode',
+    'readout',
+    'cpu_tool',
+    'reread',
+    'respond',
+)
 _MAX_EVENTS = 128
 _CURRENT = contextvars.ContextVar('latency_tracer', default=None)
 
-class _NullSpan:
 
+class _NullSpan:
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
         return False
+
+
 _NULL = _NullSpan()
 
-class LatencyTracer:
 
+class LatencyTracer:
     def __init__(self, clock=time.perf_counter, t0=None):
         self.clock = clock
         self.t0 = clock() if t0 is None else t0
@@ -225,7 +299,9 @@ class LatencyTracer:
             slot[0] += own * 1000.0
             slot[1] += 1
             if len(self.events) < _MAX_EVENTS:
-                self.events.append({'stage': name, 'at_ms': round((frame[1] - self.t0) * 1000.0, 3), 'ms': round(total * 1000.0, 3)})
+                self.events.append(
+                    {'stage': name, 'at_ms': round((frame[1] - self.t0) * 1000.0, 3), 'ms': round(total * 1000.0, 3)}
+                )
 
     @contextmanager
     def phase(self, name):
@@ -238,7 +314,9 @@ class LatencyTracer:
             slot[0] += elapsed * 1000.0
             slot[1] += 1
             if len(self.events) < _MAX_EVENTS:
-                self.events.append({'phase': name, 'at_ms': round((start - self.t0) * 1000.0, 3), 'ms': round(elapsed * 1000.0, 3)})
+                self.events.append(
+                    {'phase': name, 'at_ms': round((start - self.t0) * 1000.0, 3), 'ms': round(elapsed * 1000.0, 3)}
+                )
 
     def add(self, name, ms):
         slot = self.stages.setdefault(name, [0.0, 0])
@@ -257,16 +335,24 @@ class LatencyTracer:
     def report(self, total_ms=None):
         total = self.elapsed_ms() if total_ms is None else float(total_ms)
         stages = {name: round(slot[0], 3) for name, slot in self.stages.items()}
-        out = {'total_ms': round(total, 3), 'stages_ms': stages, 'stage_calls': {name: slot[1] for name, slot in self.stages.items()}, 'other_ms': round(max(0.0, total - sum(stages.values())), 3), 'timeline': list(self.events)}
+        out = {
+            'total_ms': round(total, 3),
+            'stages_ms': stages,
+            'stage_calls': {name: slot[1] for name, slot in self.stages.items()},
+            'other_ms': round(max(0.0, total - sum(stages.values())), 3),
+            'timeline': list(self.events),
+        }
         if self.phases:
             out['phases_ms'] = {name: round(slot[0], 3) for name, slot in self.phases.items()}
         if self.counters:
             out['counters'] = dict(self.counters)
         return out
 
+
 def start(tracer=None):
     tracer = tracer or LatencyTracer()
     return (tracer, _CURRENT.set(tracer))
+
 
 def finish(token):
     if token is None:
@@ -275,6 +361,7 @@ def finish(token):
         _CURRENT.reset(token)
     except (ValueError, RuntimeError):
         pass
+
 
 def stage(name):
     tracer = _CURRENT.get()

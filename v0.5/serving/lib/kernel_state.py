@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 import sys
 
+
 def _primitive(value):
     if value is None or type(value) in (bool, int, str):
         return value
@@ -16,24 +17,36 @@ def _primitive(value):
         return {key: _primitive(item) for key, item in value.items()}
     raise ValueError('kernel state contains a nonserializable value')
 
+
 def _config(config):
     return _primitive(dict(vars(config)))
+
 
 def _key(key):
     if type(key) is not tuple or any((type(item) not in (bool, int, float, str, type(None)) for item in key)):
         raise ValueError('kernel autotune key is not a primitive tuple')
     return [_primitive(item) for item in key]
 
+
 def _signature(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
 
+
 def _runtime_identity(device):
     import torch
+
     device = torch.device(device)
     if device.type != 'cuda':
         raise ValueError('saved FLA kernel state requires the same CUDA device')
     gpu = torch.cuda.get_device_properties(device)
-    return dict(torch=str(torch.__version__), cuda=torch.version.cuda, triton=importlib.metadata.version('triton'), fla=importlib.metadata.version('flash-linear-attention'), gpu=dict(name=gpu.name, capability=[gpu.major, gpu.minor], multiprocessors=gpu.multi_processor_count))
+    return dict(
+        torch=str(torch.__version__),
+        cuda=torch.version.cuda,
+        triton=importlib.metadata.version('triton'),
+        fla=importlib.metadata.version('flash-linear-attention'),
+        gpu=dict(name=gpu.name, capability=[gpu.major, gpu.minor], multiprocessors=gpu.multi_processor_count),
+    )
+
 
 def _source_file(module_name):
     module = sys.modules[module_name]
@@ -43,6 +56,7 @@ def _source_file(module_name):
     if not path.is_file():
         raise FileNotFoundError('missing kernel source: ' + str(path))
     return path.name
+
 
 def _tuners():
     module = sys.modules.get('triton.runtime.autotuner')
@@ -77,8 +91,15 @@ def _tuners():
                 value = getattr(value, 'fn', None)
     return found
 
+
 def _binding(identifier, tuner):
-    return dict(source_file=_source_file(identifier.split(':', 1)[0]), tuner=type(tuner).__module__ + ':' + type(tuner).__qualname__, arg_names=list(tuner.arg_names), keys=list(tuner.keys))
+    return dict(
+        source_file=_source_file(identifier.split(':', 1)[0]),
+        tuner=type(tuner).__module__ + ':' + type(tuner).__qualname__,
+        arg_names=list(tuner.arg_names),
+        keys=list(tuner.keys),
+    )
+
 
 def _refuse_always():
     module = sys.modules.get('fla.ops.utils.cache')
@@ -86,25 +107,41 @@ def _refuse_always():
     if getattr(mode, 'value', mode) == 'always':
         raise ValueError('FLA cache ALWAYS mode can override saved kernel choices')
 
+
 def capture(device):
     import torch
+
     if torch.device(device).type != 'cuda':
         return None
-    tuners = {name: tuner for name, tuner in _tuners().items() if any((key not in getattr(tuner, '_borrowed', ()) for key in tuner.cache))}
+    tuners = {
+        name: tuner
+        for name, tuner in _tuners().items()
+        if any((key not in getattr(tuner, '_borrowed', ()) for key in tuner.cache))
+    }
     if not tuners:
         return None
     _refuse_always()
     kernels = {}
     for identifier, tuner in sorted(tuners.items()):
-        entries = [dict(key=_key(key), config=_config(config)) for key, config in tuner.cache.items() if key not in getattr(tuner, '_borrowed', ())]
+        entries = [
+            dict(key=_key(key), config=_config(config))
+            for key, config in tuner.cache.items()
+            if key not in getattr(tuner, '_borrowed', ())
+        ]
         entries.sort(key=lambda entry: _signature(entry['key']))
         kernels[identifier] = dict(binding=_binding(identifier, tuner), entries=entries)
     return dict(version=1, runtime=_runtime_identity(device), kernels=kernels)
 
+
 def restore(state, device):
     if state is None or state == {}:
         return
-    if type(state) is not dict or set(state) != {'version', 'runtime', 'kernels'} or type(state['version']) is not int or (state['version'] != 1):
+    if (
+        type(state) is not dict
+        or set(state) != {'version', 'runtime', 'kernels'}
+        or type(state['version']) is not int
+        or (state['version'] != 1)
+    ):
         raise ValueError('invalid kernel state format')
     _primitive(state)
     _refuse_always()
@@ -119,6 +156,7 @@ def restore(state, device):
     _refuse_always()
     tuners = _tuners()
     from triton import Config
+
     pending = []
     for identifier, saved in state['kernels'].items():
         tuner = tuners.get(identifier)
@@ -149,13 +187,16 @@ def restore(state, device):
     for tuner, restored in pending:
         tuner.cache.update(restored)
 
+
 def _rank(state, device):
     import torch
+
     gpu = torch.cuda.get_device_properties(torch.device(device))
     saved = ((state or {}).get('runtime') or {}).get('gpu') or {}
     if saved.get('name') == gpu.name and saved.get('multiprocessors') == gpu.multi_processor_count:
         return 0
     return 1 if saved.get('capability') == [gpu.major, gpu.minor] else 2
+
 
 def _run_key(tuner, args, kwargs):
     all_args = {**dict(zip(tuner.arg_names, args)), **kwargs}
@@ -164,12 +205,15 @@ def _run_key(tuner, args, kwargs):
     key += [str(v.dtype) for v in named.values() if hasattr(v, 'dtype')]
     return tuple(key)
 
+
 def pin(states, device):
     import collections
     import torch
+
     if torch.device(device).type != 'cuda' or not states:
         return {}
     from triton import Config
+
     table, default = ({}, {})
     for state in sorted((s for s in states if isinstance(s, dict)), key=lambda s: _rank(s, device)):
         for identifier, saved in (state.get('kernels') or {}).items():
@@ -206,9 +250,11 @@ def pin(states, device):
                         _tuner._borrowed.discard(key)
                         _tuner._pinned = False
             return _original(*args, **kwargs)
+
         tuner.run, tuner._pinned, tuner._borrowed = (run, True, set())
         pinned[identifier.split(':', 1)[1]] = len(keyed)
     return pinned
+
 
 def unpin_next():
     for identifier, tuner in sorted(_tuners().items()):
@@ -219,6 +265,7 @@ def unpin_next():
             tuner._pinned, tuner._tried = (False, True)
             return identifier
     return None
+
 
 def repin(identifier):
     tuner = _tuners().get(identifier)

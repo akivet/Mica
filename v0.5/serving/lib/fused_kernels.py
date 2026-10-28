@@ -1,13 +1,26 @@
 import torch
 from torch.nn import functional as F
 
+
 def _kernels():
     global triton, tl
     import triton
     import triton.language as tl
 
     @triton.jit
-    def norm(X, Y, W, R, S, D: tl.constexpr, XD: tl.constexpr, RD: tl.constexpr, EPS: tl.constexpr, ADD: tl.constexpr, BLOCK: tl.constexpr):
+    def norm(
+        X,
+        Y,
+        W,
+        R,
+        S,
+        D: tl.constexpr,
+        XD: tl.constexpr,
+        RD: tl.constexpr,
+        EPS: tl.constexpr,
+        ADD: tl.constexpr,
+        BLOCK: tl.constexpr,
+    ):
         row = tl.program_id(0)
         col = tl.arange(0, BLOCK)
         x = tl.load(X + row * XD + col, col < D, 0).to(tl.float32)
@@ -21,14 +34,18 @@ def _kernels():
         tl.store(Y + row * D + col, x * scale * (1.0 + w), col < D)
 
     @triton.jit
-    def _v7kuxsp4ygwdk6j967lqw(G, U, Y, N):
+    def swiglu(G, U, Y, N):
         i = tl.program_id(0) * 1024 + tl.arange(0, 1024)
         g = tl.load(G + i, i < N, 0).to(tl.float32)
         u = tl.load(U + i, i < N, 0).to(tl.float32)
         activated = (g / (1.0 + tl.exp(-g))).to(G.dtype.element_ty).to(tl.float32)
         tl.store(Y + i, activated * u, i < N)
-    return (triton, norm, _v7kuxsp4ygwdk6j967lqw)
+
+    return (triton, norm, swiglu)
+
+
 _loaded = None
+
 
 def rms_norm(x, weight, eps, residual=None):
     if not x.is_cuda:
@@ -48,8 +65,22 @@ def rms_norm(x, weight, eps, residual=None):
     y = torch.empty(x.shape, dtype=x.dtype, device=x.device)
     summed = torch.empty_like(y) if residual is not None else y
     d = x.shape[-1]
-    kernel[x.numel() // d,](x, y, weight, x if residual is None else residual, summed, d, flat.stride(0), residual_flat.stride(0), eps, residual is not None, triton.next_power_of_2(d), enable_fp_fusion=False)
+    kernel[x.numel() // d,](
+        x,
+        y,
+        weight,
+        x if residual is None else residual,
+        summed,
+        d,
+        flat.stride(0),
+        residual_flat.stride(0),
+        eps,
+        residual is not None,
+        triton.next_power_of_2(d),
+        enable_fp_fusion=False,
+    )
     return y if residual is None else (y, summed)
+
 
 def swi_glu(gate, up):
     if not gate.is_cuda:

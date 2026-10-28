@@ -10,19 +10,32 @@ import time
 from pathlib import Path
 import torch
 from torch.nn import functional as F
+
 pass
-import m8rhab841mmga1gnl3mp8 as fb
-from m7ml5d1vtymnzohdbris7 import layer_step, gdn_step, SERVE, conv_channel_last
-import m7ml5d1vtymnzohdbris7 as fork_mod
+import prefill_engine as fb
+from fork import layer_step, gdn_step, SERVE, conv_channel_last
+import fork as fork_mod
+
 CUT = 16
 W_MAX = 512
 S_MAX = 32768
 
+
 def stale_scan(layer, h, init=None):
     a = layer.linear_attn
     x, kv, key, value, g, beta = scan_inputs(layer, h, init)
-    _, recurrent = a.chunk_gated_delta_rule(torch.zeros_like(key), key, value, g=g, beta=beta, initial_state=None if init is None else init[1], output_final_state=True, use_qk_l2norm_in_kernel=True)
+    _, recurrent = a.chunk_gated_delta_rule(
+        torch.zeros_like(key),
+        key,
+        value,
+        g=g,
+        beta=beta,
+        initial_state=None if init is None else init[1],
+        output_final_state=True,
+        use_qk_l2norm_in_kernel=True,
+    )
     return (scan_tail(layer, x, kv, init), recurrent)
+
 
 def proj_rows(linear, x, lo, hi=None):
     if hasattr(linear, 'qweight'):
@@ -30,8 +43,8 @@ def proj_rows(linear, x, lo, hi=None):
     w, bias = (linear.weight, linear.bias)
     return F.linear(x, w[lo:hi], None if bias is None else bias[lo:hi])
 
-class _vhcgdcwza58dy8yb290da:
 
+class SplitRows:
     def __init__(self, parts):
         self.parts = parts
 
@@ -41,19 +54,23 @@ class _vhcgdcwza58dy8yb290da:
     def index_select(self, dim, index):
         return torch.cat([p.index_select(dim, index) for p in self.parts], -1)
 
+
 def repeat_keys(key, value):
     rep = value.shape[2] // key.shape[2]
     return key.repeat_interleave(rep, 2) if rep > 1 else key
+
 
 def scan_inputs(layer, h, init=None):
     a = layer.linear_attn
     batch, length, _ = h.shape
     width = a.conv_kernel_size - 1
     x = layer.input_layernorm(h)
-    _vae5z11bsktmjgjqwnorm = a.key_dim
+    kd = a.key_dim
     split = None
     if SERVE.get('qkv_split') and SERVE['conv_cl'] and (batch * length >= fork_mod.QKV_SPLIT_ROWS):
-        split = fork_mod.split_qkv_conv(a, x, None if init is None else init[0], False, ((_vae5z11bsktmjgjqwnorm, 2 * _vae5z11bsktmjgjqwnorm), (2 * _vae5z11bsktmjgjqwnorm, 2 * _vae5z11bsktmjgjqwnorm + a.value_dim)))
+        split = fork_mod.split_qkv_conv(
+            a, x, None if init is None else init[0], False, ((kd, 2 * kd), (2 * kd, 2 * kd + a.value_dim))
+        )
     if split is not None:
         (key, value), _, raw = split
         key = key.reshape(batch, length, -1, a.head_k_dim)
@@ -62,21 +79,23 @@ def scan_inputs(layer, h, init=None):
             key = key.repeat_interleave(a.num_v_heads // a.num_k_heads, 2)
         beta = a.in_proj_b(x).sigmoid()
         g = -a.A_log.float().exp() * F.softplus(a.in_proj_a(x).float() + a.dt_bias)
-        return (x, _vhcgdcwza58dy8yb290da(raw), key, value, g, beta)
-    kv = proj_rows(a.in_proj_qkv, x, _vae5z11bsktmjgjqwnorm)
+        return (x, SplitRows(raw), key, value, g, beta)
+    kv = proj_rows(a.in_proj_qkv, x, kd)
     raw = kv.transpose(1, 2)
-    cw, cb = (a.conv1d.weight[_vae5z11bsktmjgjqwnorm:], None if a.conv1d.bias is None else a.conv1d.bias[_vae5z11bsktmjgjqwnorm:])
+    cw, cb = (a.conv1d.weight[kd:], None if a.conv1d.bias is None else a.conv1d.bias[kd:])
     conv = None
     if SERVE['conv_cl'] and a.causal_conv1d_fn is not None:
-        conv = conv_channel_last(a.causal_conv1d_fn, raw, None if init is None else init[0][:, _vae5z11bsktmjgjqwnorm:], cw.squeeze(1), cb, a.activation)
-    full = raw if init is None or conv is not None else torch.cat((init[0][:, _vae5z11bsktmjgjqwnorm:], raw), -1)
+        conv = conv_channel_last(
+            a.causal_conv1d_fn, raw, None if init is None else init[0][:, kd:], cw.squeeze(1), cb, a.activation
+        )
+    full = raw if init is None or conv is not None else torch.cat((init[0][:, kd:], raw), -1)
     if conv is not None:
         pass
     elif a.causal_conv1d_fn is not None:
         conv = a.causal_conv1d_fn(x=full, weight=cw.squeeze(1), bias=cb, activation=a.activation, seq_idx=None)
     else:
-        conv = F.silu(F.conv1d(full, cw, cb, padding=width, groups=full.shape[1])[..., :full.shape[-1]])
-    key, value = conv[..., -length:].transpose(1, 2).split((_vae5z11bsktmjgjqwnorm, a.value_dim), -1)
+        conv = F.silu(F.conv1d(full, cw, cb, padding=width, groups=full.shape[1])[..., : full.shape[-1]])
+    key, value = conv[..., -length:].transpose(1, 2).split((kd, a.value_dim), -1)
     key = key.reshape(batch, length, -1, a.head_k_dim)
     value = value.reshape(batch, length, -1, a.head_v_dim)
     if a.num_v_heads // a.num_k_heads > 1 and (not (SERVE.get('gdn_kernel') or {}).get('gva')):
@@ -85,18 +104,21 @@ def scan_inputs(layer, h, init=None):
     g = -a.A_log.float().exp() * F.softplus(a.in_proj_a(x).float() + a.dt_bias)
     return (x, kv, key, value, g, beta)
 
+
 def scan_tail(layer, x, kv, init=None):
     a = layer.linear_attn
     width = a.conv_kernel_size - 1
-    _vae5z11bsktmjgjqwnorm = a.key_dim
+    kd = a.key_dim
     m = min(x.shape[1], width)
-    q_last = proj_rows(a.in_proj_qkv, x[:, -m:], 0, _vae5z11bsktmjgjqwnorm)
+    q_last = proj_rows(a.in_proj_qkv, x[:, -m:], 0, kd)
     last = torch.cat((q_last, kv[:, -m:]), -1).transpose(1, 2)
     tail = last if init is None else torch.cat((init[0], last), -1)
     return F.pad(tail, (width - tail.shape[-1], 0)) if tail.shape[-1] < width else tail[..., -width:]
 
+
 def _qkv(layer, h, cos, sin):
     from transformers.models.qwen3_5.modeling_qwen3_5 import apply_rotary_pos_emb
+
     a = layer.self_attn
     x = layer.input_layernorm(h)
     b, n, _ = x.shape
@@ -106,6 +128,7 @@ def _qkv(layer, h, cos, sin):
     v = a.v_proj(x).view(b, n, -1, a.head_dim).transpose(1, 2)
     q, k = apply_rotary_pos_emb(q, k, cos, sin)
     return (q, gate.reshape(b, n, -1), k, v)
+
 
 def masked_attention_layer(layer, h, cos, sin, ctx, mask, rows=None):
     a = layer.self_attn
@@ -123,17 +146,19 @@ def masked_attention_layer(layer, h, cos, sin, ctx, mask, rows=None):
     out = residual + a.o_proj(o)
     return out + layer.mlp(layer.post_attention_layernorm(out))
 
+
 def bucket_s(s):
     if s <= 1024:
         return max(128, -(-s // 128) * 128)
     step = 1 << s.bit_length() - 4
     return -(-s // step) * step
 
+
 def bucket_w(w):
     return max(32, -(-w // 32) * 32)
 
-class Fast(fb._v83m8rh6inetzovw1w89s):
 
+class Fast(fb.PrefillEngine):
     def __init__(self, bench, header=True, cut=CUT, w_max=W_MAX, s_max=S_MAX):
         self.cut = int(cut)
         self.header_mid = None
@@ -156,10 +181,10 @@ class Fast(fb._v83m8rh6inetzovw1w89s):
         h = self.body.embed_tokens(ids)
         pe = self.rotary(0, self.H)
         states = []
-        for i, layer in enumerate(self.layers[:self.header_layers]):
+        for i, layer in enumerate(self.layers[: self.header_layers]):
             if i == self.cut:
                 self.header_mid = h
-            h, state = layer_step(layer, h, pe, self.positions[:, :self.H], None, None, keep=True)
+            h, state = layer_step(layer, h, pe, self.positions[:, : self.H], None, None, keep=True)
             states.append(state)
         self.header, self.header_hidden = (states, h)
 
@@ -186,18 +211,22 @@ class Fast(fb._v83m8rh6inetzovw1w89s):
     def context(self, h, start, s, mode):
         if s == 0:
             return ({}, {})
-        rows = h[:, :s - start]
+        rows = h[:, : s - start]
         ctx, gdn = ({}, {})
         for i in self.fa_up:
             if start:
-                ctx[i] = self.hdr_kv[i] if rows.shape[1] == 0 else tuple((torch.cat((x, y), 2) for x, y in zip(self.hdr_kv[i], self.kv(i, rows, start))))
+                ctx[i] = (
+                    self.hdr_kv[i]
+                    if rows.shape[1] == 0
+                    else tuple((torch.cat((x, y), 2) for x, y in zip(self.hdr_kv[i], self.kv(i, rows, start))))
+                )
             else:
                 ctx[i] = self.kv(i, rows, 0)
-        if mode == '_v9qzrgapy1ah7g1jj5alh':
+        if mode == 'stale_state':
             for i in self.gdn_up:
                 init = self.hdr_gdn[i] if start else None
                 gdn[i] = init if rows.shape[1] == 0 else self.scan(self.layers[i], rows, init)
-        elif mode != '_v654mofq6e6jk42xea5z6':
+        elif mode != 'stale':
             raise ValueError('unknown mode')
         return (ctx, gdn)
 
@@ -205,16 +234,18 @@ class Fast(fb._v83m8rh6inetzovw1w89s):
         return stale_scan(layer, rows, init)
 
     def window(self, h, start, s, n, ctx, gdn):
-        x = h[:, s - start:]
+        x = h[:, s - start :]
         pe, pos = (self.rotary(s, n), self.positions[:, s:n])
         for i in range(self.cut, self.last):
             layer = self.layers[i]
             state = ctx.get(i) if layer.layer_type == 'full_attention' else gdn.get(i)
             x = fb.step(layer, x, pe, pos, state)
         last = self.layers[self.last]
-        return self.final(x, pe, ctx.get(self.last) if last.layer_type == 'full_attention' else gdn.get(self.last), s, None)
+        return self.final(
+            x, pe, ctx.get(self.last) if last.layer_type == 'full_attention' else gdn.get(self.last), s, None
+        )
 
-    def fast(self, ids, s, host=None, mode='_v654mofq6e6jk42xea5z6', graph=False, low=None):
+    def fast(self, ids, s, host=None, mode='stale', graph=False, low=None):
         h, start, _ = low if low is not None else self.lower16(ids, s, host)
         n = ids.shape[1]
         ctx, gdn = self.context(h, start, s, mode)
@@ -226,10 +257,10 @@ class Fast(fb._v83m8rh6inetzovw1w89s):
 
     def dense(self, low):
         h, start, pe = low
-        h = self.layers_range(h, pe, self.positions[:, start:start + h.shape[1]], start, self.cut, self.last)
+        h = self.layers_range(h, pe, self.positions[:, start : start + h.shape[1]], start, self.cut, self.last)
         return self.final(h, pe, self.header[self.last] if start else None, start, None)
 
-    def cascade(self, ids, s, host=None, mode='_v654mofq6e6jk42xea5z6', tau=0.6, pick=None, graph=False):
+    def cascade(self, ids, s, host=None, mode='stale', tau=0.6, pick=None, graph=False):
         low = self.lower16(ids, s, host)
         z = self.fast(ids, s, host, mode, graph, low)
         if tau < 1 and confidence(z if pick is None else pick(z)) >= tau:
@@ -238,14 +269,15 @@ class Fast(fb._v83m8rh6inetzovw1w89s):
 
     def graph_window(self, h, start, s, n, ctx, gdn, mode):
         if self.upper_graph is None:
-            self.upper_graph = _v29sx5efmidklsdhdw8ye(self)
+            self.upper_graph = UpperGraph(self)
         return self.upper_graph(h, start, s, n, ctx, gdn, mode)
+
 
 def confidence(z):
     return float(z.float().softmax(-1).max())
 
-class _v29sx5efmidklsdhdw8ye:
 
+class UpperGraph:
     def __init__(self, rt):
         self.rt = rt
         dev, dt = (rt.device, rt.dtype)
@@ -281,14 +313,16 @@ class _v29sx5efmidklsdhdw8ye:
             if layer.layer_type == 'full_attention':
                 x = masked_attention_layer(layer, x, cos, sin, (self.kbuf[i][:, :, :sb], self.vbuf[i][:, :, :sb]), mask)
             else:
-                state = self.gbuf.get(i) if mode != '_v654mofq6e6jk42xea5z6' else None
+                state = self.gbuf.get(i) if mode != 'stale' else None
                 x = layer_step(layer, x, (cos, sin), None, state, None, keep=False)[0]
         idx = self.w_len - 1
         layer = rt.layers[rt.last]
         if layer.layer_type == 'full_attention':
-            out = masked_attention_layer(layer, x, cos, sin, (self.kbuf[rt.last][:, :, :sb], self.vbuf[rt.last][:, :, :sb]), mask, rows=idx)
+            out = masked_attention_layer(
+                layer, x, cos, sin, (self.kbuf[rt.last][:, :, :sb], self.vbuf[rt.last][:, :, :sb]), mask, rows=idx
+            )
         else:
-            state = self.gbuf.get(rt.last) if mode != '_v654mofq6e6jk42xea5z6' else None
+            state = self.gbuf.get(rt.last) if mode != 'stale' else None
             y, _ = gdn_step(layer.linear_attn, layer.input_layernorm(x), state, keep=False)
             out = x.index_select(1, idx) + y.index_select(1, idx)
             out = out + layer.mlp(layer.post_attention_layernorm(out))
@@ -303,14 +337,14 @@ class _v29sx5efmidklsdhdw8ye:
         for i in rt.fa_up:
             self.kbuf[i][:, :, :s].copy_(ctx[i][0])
             self.vbuf[i][:, :, :s].copy_(ctx[i][1])
-        if mode != '_v654mofq6e6jk42xea5z6':
+        if mode != 'stale':
             for i in rt.gdn_up:
                 if i not in self.gbuf:
                     self.gbuf[i] = tuple((t.clone() for t in gdn[i]))
                 else:
                     for dst, src in zip(self.gbuf[i], gdn[i]):
                         dst.copy_(src)
-        self.x[:, :w].copy_(h[:, s - start:])
+        self.x[:, :w].copy_(h[:, s - start :])
         self.s_len.fill_(s)
         self.w_len.fill_(w)
         if not self.cuda:
@@ -321,7 +355,7 @@ class _v29sx5efmidklsdhdw8ye:
         return g.out
 
     def capture(self, key):
-        g = fb._v79scs9dr4oljw1o5ga3v(None, None)
+        g = fb._Graph(None, None)
         fn = lambda: self.fn(*key)
         if self.pool is None:
             self.pool = torch.cuda.graph_pool_handle()

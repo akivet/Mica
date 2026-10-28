@@ -2,6 +2,7 @@ import json
 import math
 from pathlib import Path
 
+
 def load_calibration(path, *, model_identity=None):
     fitted = json.loads(Path(path).read_text(encoding='utf-8'))
     if fitted.get('schema') == 'temperatures-v1':
@@ -16,12 +17,18 @@ def load_calibration(path, *, model_identity=None):
     else:
         raise ValueError('Unsupported calibration schema')
     for kind, value in temperatures.items():
-        if kind not in ('noul', 'choice', 'score') or type(value) not in (int, float) or (not math.isfinite(value)) or (value <= 0):
+        if (
+            kind not in ('noul', 'choice', 'score')
+            or type(value) not in (int, float)
+            or (not math.isfinite(value))
+            or (value <= 0)
+        ):
             raise ValueError('Calibration temperature must be a positive finite number for a supported kind')
     bias = fitted.get('noul_logit_bias', 0.0)
     if type(bias) not in (int, float) or not math.isfinite(bias):
         raise ValueError('Noul calibration bias must be finite')
     return (fitted, dict(temperatures), float(bias))
+
 
 def calibrated_logits(values, temperature=1.0, noul_logit_bias=0.0):
     if not math.isfinite(temperature) or temperature <= 0:
@@ -36,6 +43,7 @@ def calibrated_logits(values, temperature=1.0, noul_logit_bias=0.0):
             raise ValueError('Noul bias requires two logits')
         result[1] += noul_logit_bias
     return result
+
 
 def distribution(values, temperature=1.0, noul_logit_bias=0.0):
     scaled = calibrated_logits(values, temperature, noul_logit_bias)

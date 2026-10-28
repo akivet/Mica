@@ -6,12 +6,15 @@ import time
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler
 from http.server import ThreadingHTTPServer
-import m81mym3jhph2kl5gy7i8b as fast_path
+import fast_path as fast_path
+
+TOO_LONG = 'Input exceeds max_length'
 JUDGE = None
 MODEL_NAME = 'systemone'
 DEBUG_TRACE = False
-QUESTION_SERVER_FIELDS = ('_v6gd7oavvss5c4jnyhxhc',)
+QUESTION_SERVER_FIELDS = ('expert',)
 CONTRACT_FIELDS = ('model', 'state', 'questions', 'images')
+
 
 def contract_request(body):
     if not isinstance(body, dict):
@@ -29,22 +32,35 @@ def contract_request(body):
                         experts[name] = str(q[field])
                     q.pop(field, None)
                 crit = q.get('criteria')
-                if str(q.get('type', '')).lower() == 'noul' and isinstance(crit, dict) and ({str(k).lower() for k in crit} == {'no', 'yes'}):
+                if (
+                    str(q.get('type', '')).lower() == 'noul'
+                    and isinstance(crit, dict)
+                    and ({str(k).lower() for k in crit} == {'no', 'yes'})
+                ):
                     q['criteria'] = {'false' if str(k).lower() == 'no' else 'true': v for k, v in crit.items()}
             clean[name] = q
         request['questions'] = clean
     return (request, experts)
 
+
 def _with_experts(rows, experts):
     if not experts:
         return rows
-    return [dict(r, _v6gd7oavvss5c4jnyhxhc=experts[r.get('multi_of', r['id'])]) if r.get('multi_of', r['id']) in experts else r for r in rows]
+    return [
+        dict(r, expert=experts[r.get('multi_of', r['id'])]) if r.get('multi_of', r['id']) in experts else r
+        for r in rows
+    ]
+
 
 def rows_from_request(body):
-    from m6lir2n4n221f2rp5z93i import rows_from_request as contract_rows
+    from contract import rows_from_request as contract_rows
+
     request, experts = contract_request(body)
     return _with_experts(contract_rows(request), experts)
+
+
 REASONING = {'default': 'off', 'budget_ms': 500.0, 'profile': None, 'config': None, 'gate': None}
+
 
 def reasoning_options(body):
     mode = body.get('reasoning', REASONING['default'])
@@ -55,11 +71,13 @@ def reasoning_options(body):
         raise ValueError('budget_ms must be a positive number of milliseconds')
     return (mode, float(budget))
 
+
 def debug_timing_flag(body):
     flag = body.get('debug_timing', False)
     if not isinstance(flag, bool):
         raise ValueError('debug_timing must be a boolean')
     return flag
+
 
 def begin_timing(debug, t_start, t_parsed):
     if not debug:
@@ -67,6 +85,7 @@ def begin_timing(debug, t_start, t_parsed):
     tracer = fast_path.LatencyTracer(t0=t_start)
     tracer.add('parse', (t_parsed - t_start) * 1000.0)
     return (tracer, fast_path.start(tracer)[1])
+
 
 def attach_timing(payload, tracer, token, *, input_tokens=None):
     if tracer is None:
@@ -92,6 +111,7 @@ def attach_timing(payload, tracer, token, *, input_tokens=None):
         payload['timing'] = report
     return payload
 
+
 def reasoned_answer(row, result):
     out = answer(row, result['probs'])
     out['prediction_set'] = list(result['prediction_set'])
@@ -99,6 +119,7 @@ def reasoned_answer(row, result):
     if DEBUG_TRACE:
         out['trace_meta'] = result['trace_meta']
     return out
+
 
 def legacy_fields(out):
     out = dict(out)
@@ -111,20 +132,25 @@ def legacy_fields(out):
         out.setdefault('answer', out['level'])
     return out
 
+
 def answer(row, p):
-    from m6lir2n4n221f2rp5z93i import response_envelope
+    from contract import response_envelope
+
     p = list(p)
     out = response_envelope([row], [p], model=MODEL_NAME or 'systemone')['answers'][row['id']]
     return legacy_fields(out)
 
+
 def input_tokens(rows):
-    from m6lir2n4n221f2rp5z93i import prompt_for
+    from contract import prompt_for
+
     toks = [JUDGE.tokenize(prompt_for(r, JUDGE.tokenizer)) for r in rows]
     common = 0
     if len(toks) > 1:
         while all((common < len(t) for t in toks)) and len({t[common] for t in toks}) == 1:
             common += 1
     return sum((len(t) for t in toks)) - common * (len(toks) - 1)
+
 
 def reasoned_input_tokens(rows, results):
     metas = [r.get('trace_meta') or {} for r in results]
@@ -134,18 +160,26 @@ def reasoned_input_tokens(rows, results):
         raise ValueError('Strict timing requires computed prompt token counts')
     return input_tokens(rows)
 
+
 def _public_reason(text, limit=300):
     import re
+
     text = re.sub('(?:[A-Za-z]:[\\\\/]|/)(?:[^\\s\\\'"/\\\\]+[\\\\/])+[^\\s\\\'"]*', '<path>', str(text or ''))
     text = ' '.join(text.split())
     return text[:limit]
+
 
 class Handler(BaseHTTPRequestHandler):
     disable_nagle_algorithm = True
     wbufsize = 1 << 16
 
     def _send(self, code, obj):
-        if 'error' in obj:
+        if code == 400 and str(obj.get('error', '')).startswith(TOO_LONG):
+            code, obj = (
+                422,
+                {'error': {'type': 'question_error', 'code': 'input_too_long', 'message': str(obj['error'])}},
+            )
+        elif 'error' in obj:
             reason = _public_reason(obj['error']) if code == 400 else None
             obj = {'error': 'Invalid request' if code == 400 else 'Request failed' if code >= 500 else 'not found'}
             if reason:
@@ -155,7 +189,9 @@ class Handler(BaseHTTPRequestHandler):
             obj.pop('timing', None)
             latency = obj.pop('latency_ms', None)
             if latency is not None:
-                obj['latency_band_ms'] = '0-50' if latency < 50 else '50-200' if latency < 200 else '200-500' if latency < 500 else '500+'
+                obj['latency_band_ms'] = (
+                    '0-50' if latency < 50 else '50-200' if latency < 200 else '200-500' if latency < 500 else '500+'
+                )
         data = json.dumps(obj, ensure_ascii=False).encode('utf-8')
         self.send_response(code)
         self.send_header('Content-Type', 'application/json')
@@ -191,14 +227,21 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('multi is served with reasoning "off" only')
         except (ValueError, json.JSONDecodeError) as e:
             return self._send(400, {'error': str(e)})
-        tracer, token = begin_timing(DEBUG_TRACE and debug or REASONING.get('strict_timing', False), t_start, time.perf_counter())
+        tracer, token = begin_timing(
+            DEBUG_TRACE and debug or REASONING.get('strict_timing', False), t_start, time.perf_counter()
+        )
         try:
             self._answer(rows, mode, budget, t_start, tracer, token, request=request, experts=experts)
         except Exception as exc:
             self._send(500, {'error': 'Request failed'})
-            print(json.dumps({'request_failed': type(exc).__name__, 'detail': str(exc)[:300]}), file=sys.stderr, flush=True)
+            print(
+                json.dumps({'request_failed': type(exc).__name__, 'detail': str(exc)[:300]}),
+                file=sys.stderr,
+                flush=True,
+            )
             try:
                 import torch
+
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except Exception:
@@ -209,7 +252,15 @@ class Handler(BaseHTTPRequestHandler):
     def _answer(self, rows, mode, budget, t_start, tracer, token, request=None, experts=None):
         if mode != 'off':
             try:
-                results = JUDGE.judge_reasoned(rows, reasoning=mode, budget_ms=budget, profile=REASONING['profile'], config=REASONING['config'], gate=REASONING['gate'], t_start=t_start)
+                results = JUDGE.judge_reasoned(
+                    rows,
+                    reasoning=mode,
+                    budget_ms=budget,
+                    profile=REASONING['profile'],
+                    config=REASONING['config'],
+                    gate=REASONING['gate'],
+                    t_start=t_start,
+                )
             except ValueError as e:
                 return self._send(400, {'error': str(e)})
             decoded = sum((r['trace_meta']['tokens']['decoded'] for r in results))
@@ -219,14 +270,24 @@ class Handler(BaseHTTPRequestHandler):
                 usage = {'input_tokens': reasoned_input_tokens(rows, results), 'output_tokens': decoded}
             except ValueError as e:
                 return self._send(400, {'error': str(e)})
-            return self._send(200, attach_timing({'model': MODEL_NAME, 'answers': answers, 'usage': usage, 'latency_ms': latency}, tracer, token, input_tokens=usage['input_tokens']))
+            return self._send(
+                200,
+                attach_timing(
+                    {'model': MODEL_NAME, 'answers': answers, 'usage': usage, 'latency_ms': latency},
+                    tracer,
+                    token,
+                    input_tokens=usage['input_tokens'],
+                ),
+            )
         report, served = ({}, {'rows': rows})
 
         def predict(batch):
             batch = _with_experts(batch, experts)
             served['rows'] = batch
             return JUDGE.judge(batch, share_prefix=len(batch) > 1, report=report)
-        from m6lir2n4n221f2rp5z93i import answer_request
+
+        from contract import answer_request
+
         try:
             result = answer_request(request, predict, model=MODEL_NAME)
         except ValueError as e:
@@ -236,13 +297,27 @@ class Handler(BaseHTTPRequestHandler):
         latency = round((time.perf_counter() - t_start) * 1000, 1)
         if REASONING.get('strict_timing', False) and 'input_tokens' not in report:
             return self._send(400, {'error': 'Strict timing requires computed prompt token counts'})
-        usage = {'input_tokens': report['input_tokens'] if 'input_tokens' in report else input_tokens(rows), 'output_tokens': 0}
-        self._send(200, attach_timing({'model': MODEL_NAME, 'answers': answers, 'usage': usage, 'latency_ms': latency}, tracer, token, input_tokens=usage['input_tokens']))
+        usage = {
+            'input_tokens': report['input_tokens'] if 'input_tokens' in report else input_tokens(rows),
+            'output_tokens': 0,
+        }
+        self._send(
+            200,
+            attach_timing(
+                {'model': MODEL_NAME, 'answers': answers, 'usage': usage, 'latency_ms': latency},
+                tracer,
+                token,
+                input_tokens=usage['input_tokens'],
+            ),
+        )
 
     def log_message(self, *a):
         pass
-_v11in3z4qruotk1862nps = ('noul', 'choice', 'score')
+
+
+WARMUP_KINDS = ('noul', 'choice', 'score')
 WARM = {'last_request': None, 'lock': threading.Lock()}
+
 
 def _warm_row(kind, state, index=0):
     if kind == 'noul':
@@ -251,14 +326,22 @@ def _warm_row(kind, state, index=0):
         cands = [{'id': str(i), 'text': f'level {i}'} for i in range(11)]
     else:
         cands = [{'id': f'option{i}', 'text': f'Option {i}'} for i in range(4)]
-    return {'id': f'warm-{kind}-{index}', 'kind': kind, 'state': state, 'question': f'Warm-up question {index}?', 'candidates': cands}
+    return {
+        'id': f'warm-{kind}-{index}',
+        'kind': kind,
+        'state': state,
+        'question': f'Warm-up question {index}?',
+        'candidates': cands,
+    }
 
-def _v2lbiu05abgrrc954oo6t(tokenizer, length, kind, *, questions=1):
-    from m6lir2n4n221f2rp5z93i import prompt_for
+
+def warmup_rows(tokenizer, length, kind, *, questions=1):
+    from contract import prompt_for
 
     def size(n):
         rows = [_warm_row(kind, 'warm ' * n, i) for i in range(questions)]
         return (len(tokenizer.encode(prompt_for(rows[0], tokenizer), add_special_tokens=False)), rows)
+
     base, rows = size(0)
     if base >= length:
         return rows
@@ -273,7 +356,8 @@ def _v2lbiu05abgrrc954oo6t(tokenizer, length, kind, *, questions=1):
             hi = mid
     return size(lo)[1]
 
-def _v5fk4i78hn5w2galet9gy(judge, buckets, *, max_questions=3, kinds=_v11in3z4qruotk1862nps, log=None):
+
+def warmup_judge(judge, buckets, *, max_questions=3, kinds=WARMUP_KINDS, log=None):
     limit = min(getattr(judge, 'max_length', 1 << 30), getattr(judge, 'n_ctx_seq', 1 << 30))
     seqs = max(1, min(max_questions, getattr(judge, 'n_seq_max', max_questions)))
     report = []
@@ -282,18 +366,28 @@ def _v5fk4i78hn5w2galet9gy(judge, buckets, *, max_questions=3, kinds=_v11in3z4qr
             report.append({'bucket': length, 'skipped': 'over max_length'})
             continue
         for kind in kinds:
-            rows = _v2lbiu05abgrrc954oo6t(judge.tokenizer, length, kind)
+            rows = warmup_rows(judge.tokenizer, length, kind)
             t = time.perf_counter()
             judge.judge(rows, share_prefix=False)
-            report.append({'bucket': length, 'kind': kind, 'questions': 1, 'ms': round((time.perf_counter() - t) * 1000.0, 1)})
+            report.append(
+                {'bucket': length, 'kind': kind, 'questions': 1, 'ms': round((time.perf_counter() - t) * 1000.0, 1)}
+            )
         if seqs > 1:
-            rows = _v2lbiu05abgrrc954oo6t(judge.tokenizer, length, 'choice', questions=seqs)
+            rows = warmup_rows(judge.tokenizer, length, 'choice', questions=seqs)
             t = time.perf_counter()
             judge.judge(rows, share_prefix=True)
-            report.append({'bucket': length, 'kind': 'choice', 'questions': seqs, 'ms': round((time.perf_counter() - t) * 1000.0, 1)})
+            report.append(
+                {
+                    'bucket': length,
+                    'kind': 'choice',
+                    'questions': seqs,
+                    'ms': round((time.perf_counter() - t) * 1000.0, 1),
+                }
+            )
     if log is not None:
-        print(json.dumps({'_vc2bm7ib2g84yw3czx30t': report}), file=log, flush=True)
+        print(json.dumps({'warmup': report}), file=log, flush=True)
     return report
+
 
 def desktop_handler(a):
     if not (a.keep_alive or a.keep_warm_seconds > 0):
@@ -321,4 +415,5 @@ def desktop_handler(a):
                 return super().do_POST()
             finally:
                 WARM['last_request'] = time.monotonic()
+
     return DesktopHandler

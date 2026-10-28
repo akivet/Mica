@@ -9,6 +9,7 @@ import time
 import types
 from pathlib import Path
 import torch
+
 GRAPH_MAX = 512
 EXACT_MAX = 1024
 GRAPH_BUCKET = 64
@@ -30,6 +31,7 @@ HOT_INTERVAL_S = 2.0
 _ENCODE_LOCK = threading.Lock()
 DESKTOP_FLAGS = ('--cache-ram', '0', '--no-cache-idle-slots', '--ctx-checkpoints', '0', '--sleep-idle-seconds', '-1')
 
+
 def route_limits(precision, exact_max=0, graph_max=0):
     exact = int(exact_max) or (EXACT_MAX_INT8 if precision == 'int8' else EXACT_MAX)
     graph = int(graph_max) or (GRAPH_MAX_INT8 if precision == 'int8' else GRAPH_MAX)
@@ -37,37 +39,61 @@ def route_limits(precision, exact_max=0, graph_max=0):
         raise ValueError('exact-max must be positive and graph-max a positive multiple of %d' % GRAPH_BUCKET)
     return (exact, graph)
 
+
 def install_glue(body):
-    import m7ml5d1vtymnzohdbris7 as fork
-    import m4042euhfp7ynv7osi045 as _vba9w2x4ebr0mfzzp69di
+    import fork as fork
+    import fast_runtime as fast_runtime
+
     fork.SERVE['conv_cl'] = True
     fork.SERVE['gqa_flash'] = True
     cuda = next(body.parameters()).is_cuda
     fork.SERVE['qkv_split'] = cuda
-    return {'norms': fork.install_norms(body, fused=cuda), 'norms_fused': cuda, 'qkv_split': cuda, 'conv_channel_last': True, 'gqa_flash': True, 'flash_built': _vba9w2x4ebr0mfzzp69di.FLASH_BUILT, 'aot_attention': _vba9w2x4ebr0mfzzp69di.install_aot_attention(), 'coarse_autotune': _vba9w2x4ebr0mfzzp69di.coarse_autotune_keys() if next(body.parameters()).is_cuda else [], 'gdn_kernel': _set_gdn(fork, _vba9w2x4ebr0mfzzp69di, body), 'fused_mlp': _vba9w2x4ebr0mfzzp69di._v42fl7w8pieyiuhp0eilm(body) if next(body.parameters()).is_cuda else 0}
+    return {
+        'norms': fork.install_norms(body, fused=cuda),
+        'norms_fused': cuda,
+        'qkv_split': cuda,
+        'conv_channel_last': True,
+        'gqa_flash': True,
+        'flash_built': fast_runtime.FLASH_BUILT,
+        'aot_attention': fast_runtime.install_aot_attention(),
+        'coarse_autotune': fast_runtime.coarse_autotune_keys() if next(body.parameters()).is_cuda else [],
+        'gdn_kernel': _set_gdn(fork, fast_runtime, body),
+        'fused_mlp': fast_runtime.install_swiglu(body) if next(body.parameters()).is_cuda else 0,
+    }
 
-def _set_gdn(fork, _vba9w2x4ebr0mfzzp69di, body):
-    options = _vba9w2x4ebr0mfzzp69di.gdn_serving_options(body) if next(body.parameters()).is_cuda else None
+
+def _set_gdn(fork, fast_runtime, body):
+    options = fast_runtime.gdn_serving_options(body) if next(body.parameters()).is_cuda else None
     fork.SERVE['gdn_kernel'] = options
     return options
 
+
 def fb_sizes():
-    import m8rhab841mmga1gnl3mp8 as fb
+    import prefill_engine as fb
+
     return fb.FORK_SIZES
 
+
 def fb_tails():
-    import m8rhab841mmga1gnl3mp8 as fb
+    import prefill_engine as fb
+
     return fb.FORK_TAILS
 
+
 def _labels():
-    from m6lir2n4n221f2rp5z93i import OPTION_LABELS
+    from contract import OPTION_LABELS
+
     return ['No', 'Yes'] + list(OPTION_LABELS)
+
+
 _OPAQUE_ID = None
 _TRUTH_IDS = {'true': 'c1001', 'false': 'c1002', 'unknown': 'c1003'}
+
 
 def serving_row(row):
     global _OPAQUE_ID
     import re
+
     if str(row.get('kind', '')).lower() != 'choice' or not row.get('candidates'):
         return row
     if _OPAQUE_ID is None:
@@ -80,13 +106,17 @@ def serving_row(row):
     if mapped == ids or len(set(mapped)) != len(mapped):
         return row
     return dict(row, candidates=[dict(c, id=new) for c, new in zip(row['candidates'], mapped)])
+
+
 PAR_TOKENIZE_CHARS = 2000
 PAR_PIECE_CHARS = 700
 PAR_MAX_PIECES = 32
 
+
 def _cut_ok(text, j):
     c, prev, nxt = (text[j], text[j - 1], text[j + 1])
     return prev.isalnum() and (c == '\n' and (not nxt.isspace()) or (c == ' ' and nxt.isalpha()))
+
 
 def safe_cuts(text, piece=PAR_PIECE_CHARS):
     cuts, i, n = ([], piece, len(text))
@@ -98,6 +128,7 @@ def safe_cuts(text, piece=PAR_PIECE_CHARS):
             cuts.append(j)
         i = (j if j < end else end) + piece
     return cuts
+
 
 def token_ids(tokenizer, text, offsets=False):
     backend = getattr(tokenizer, 'backend_tokenizer', None)
@@ -112,8 +143,10 @@ def token_ids(tokenizer, text, offsets=False):
     ends = [a + end for a, e in zip(bounds, encs) for _, end in e.offsets] if offsets else None
     return (ids, ends)
 
+
 def encode(tokenizer, row):
-    from m6lir2n4n221f2rp5z93i import escape_special, prompt_for
+    from contract import escape_special, prompt_for
+
     text = prompt_for(row, tokenizer)
     ids, ends = token_ids(tokenizer, text, offsets=True)
     state = row['state'] if isinstance(row['state'], str) else json.dumps(row['state'], ensure_ascii=False)
@@ -122,8 +155,10 @@ def encode(tokenizer, row):
     boundary = next((i for i, e in enumerate(ends) if e > char), None)
     return (ids, boundary)
 
+
 def encode_shared(tokenizer, rows):
-    from m6lir2n4n221f2rp5z93i import escape_special, prompt_for
+    from contract import escape_special, prompt_for
+
     texts = [prompt_for(row, tokenizer) for row in rows]
     state = rows[0]['state'] if isinstance(rows[0]['state'], str) else json.dumps(rows[0]['state'], ensure_ascii=False)
     start = texts[0].find('<state>\n')
@@ -136,15 +171,40 @@ def encode_shared(tokenizer, rows):
     whole, boundary = encode(tokenizer, rows[0])
     if boundary != len(head) or head + tokenizer(texts[0][cut:], add_special_tokens=False)['input_ids'] != whole:
         return None
-    return [(whole, boundary)] + [(head + tokenizer(t[cut:], add_special_tokens=False)['input_ids'], boundary) for t in texts[1:]]
-HEADER_PROBES = ('x', '\nx', '\n\nx', '\r\nx', '\rx', ' x', '\tx', '{"a": 1}', '[1]', chr(12288) + 'x', chr(8203) + 'x', '<x')
+    return [(whole, boundary)] + [
+        (head + tokenizer(t[cut:], add_special_tokens=False)['input_ids'], boundary) for t in texts[1:]
+    ]
+
+
+HEADER_PROBES = (
+    'x',
+    '\nx',
+    '\n\nx',
+    '\r\nx',
+    '\rx',
+    ' x',
+    '\tx',
+    '{"a": 1}',
+    '[1]',
+    chr(12288) + 'x',
+    chr(8203) + 'x',
+    '<x',
+)
+
 
 def stable_header(tokenizer, header):
-    from m6lir2n4n221f2rp5z93i import prompt_for
+    from contract import prompt_for
+
     header = tuple(header)
     keep = len(header)
     for first in HEADER_PROBES:
-        row = {'id': 'h', 'kind': 'noul', 'state': first, 'question': 'q?', 'candidates': [{'id': 'false', 'text': 'No'}, {'id': 'true', 'text': 'Yes'}]}
+        row = {
+            'id': 'h',
+            'kind': 'noul',
+            'state': first,
+            'question': 'q?',
+            'candidates': [{'id': 'false', 'text': 'No'}, {'id': 'true', 'text': 'Yes'}],
+        }
         ids = tokenizer(prompt_for(row, tokenizer), add_special_tokens=False)['input_ids']
         n = 0
         while n < keep and n < len(ids) and (ids[n] == header[n]):
@@ -152,50 +212,70 @@ def stable_header(tokenizer, header):
         keep = n
     return header[:keep]
 
-class HFJudge:
 
-    def __init__(self, folder, device='cuda', max_length=32768, recipe=True, w8a8='off', exact_max=0, graph_max=0, quant_backend='aot', precision_route=False, memory_limit=0, state_dir=None):
+class HFJudge:
+    def __init__(
+        self,
+        folder,
+        device='cuda',
+        max_length=32768,
+        recipe=True,
+        int8_quant='off',
+        exact_max=0,
+        graph_max=0,
+        quant_backend='aot',
+        precision_route=False,
+        memory_limit=0,
+        state_dir=None,
+    ):
         from transformers import AutoTokenizer
         from transformers import Qwen3_5ForCausalLM
         from transformers import Qwen3_5TextConfig
-        import m8rhab841mmga1gnl3mp8 as fb
-        import m59i8a56wgcx69l9bd9nz as w8_runtime
+        import prefill_engine as fb
+        import int8_runtime as int8_runtime
+
         folder = Path(folder)
         cuda = torch.device(device).type == 'cuda' and torch.cuda.is_available()
         if cuda and memory_limit:
-            w8_runtime.limit_memory(device, memory_limit)
+            int8_runtime.limit_memory(device, memory_limit)
         t_load = time.perf_counter()
         self.tokenizer = AutoTokenizer.from_pretrained(folder, local_files_only=True)
-        self.quant = {'precision': 'bf16', 'request': w8a8, 'reason': 'off'}
-        want = recipe and w8a8 != 'off'
-        pre = (folder / w8_runtime.FILE).is_file()
+        self.quant = {'precision': 'bf16', 'request': int8_quant, 'reason': 'off'}
+        want = recipe and int8_quant != 'off'
+        pre = (folder / int8_runtime.FILE).is_file()
         has_bf16 = any(((folder / n).is_file() for n in ('model.safetensors', 'model.safetensors.index.json')))
         test = None
         shapes = None
         if want and quant_backend == 'aot' and cuda:
-            shapes = w8_runtime.linear_shapes(folder)
-            test = w8_runtime.selftest_cached(state_dir, shapes, device) or w8_runtime.selftest_start(shapes, device)
+            shapes = int8_runtime.linear_shapes(folder)
+            test = int8_runtime.selftest_cached(state_dir, shapes, device) or int8_runtime.selftest_start(
+                shapes, device
+            )
         model = None
         if pre and (want or not has_bf16):
-            model, self.quant = w8_runtime.load_file(folder, device, w8a8 if want else 'off', backend=quant_backend, selftest=test, bf16_ok=has_bf16)
+            model, self.quant = int8_runtime.load_file(
+                folder, device, int8_quant if want else 'off', backend=quant_backend, selftest=test, bf16_ok=has_bf16
+            )
             test = None
             if precision_route and self.quant['precision'] == 'int8':
                 self.quant['dual_refused'] = 'pre-converted weights'
         if model is None:
             config = Qwen3_5TextConfig.from_pretrained(folder, local_files_only=True)
-            model = Qwen3_5ForCausalLM.from_pretrained(folder, config=config, dtype=torch.bfloat16, local_files_only=True)
+            model = Qwen3_5ForCausalLM.from_pretrained(
+                folder, config=config, dtype=torch.bfloat16, local_files_only=True
+            )
             model = model.to(device).eval().requires_grad_(False)
             if want and (not pre):
                 extra = {'dual': True} if precision_route else {}
                 if test is not None:
                     extra['selftest'] = test
-                self.quant = w8_runtime.apply(model.model, device, w8a8, backend=quant_backend, **extra)
+                self.quant = int8_runtime.apply(model.model, device, int8_quant, backend=quant_backend, **extra)
             else:
-                w8_runtime.selftest_cancel(test)
+                int8_runtime.selftest_cancel(test)
         self.dual = bool(self.quant.get('dual'))
         if shapes is not None:
             try:
-                w8_runtime.selftest_remember(state_dir, shapes, device, self.quant.get('selftest'))
+                int8_runtime.selftest_remember(state_dir, shapes, device, self.quant.get('selftest'))
             except OSError:
                 pass
         self.load_seconds = round(time.perf_counter() - t_load, 1)
@@ -204,14 +284,16 @@ class HFJudge:
         self.context_cap = None
         self.memory_profile = 'standard'
         if cuda:
-            total = w8_runtime.total_memory(device)
-            self.memory_profile, self.context_cap = w8_runtime.memory_plan(total, self.quant['precision'], self.dual, 'file' if self.quant.get('source') == 'file' else 'convert')
+            total = int8_runtime.total_memory(device)
+            self.memory_profile, self.context_cap = int8_runtime.memory_plan(
+                total, self.quant['precision'], self.dual, 'file' if self.quant.get('source') == 'file' else 'convert'
+            )
             if self.context_cap == 0:
                 raise ValueError('this GPU has too little memory for the HF backend (use the GGUF backend)')
             max_length = min(int(max_length), self.context_cap)
         lean = self.memory_profile == 'lean'
         if lean and (not graph_max):
-            graph_max = w8_runtime.LEAN_GRAPH_MAX
+            graph_max = int8_runtime.LEAN_GRAPH_MAX
         self.batch_tokens = min(BATCH_TOKENS, max_length) if lean else BATCH_TOKENS
         ids = [self.tokenizer.encode(label, add_special_tokens=False) for label in _labels()]
         if any((len(i) != 1 for i in ids)):
@@ -219,23 +301,34 @@ class HFJudge:
         index = torch.tensor([i[0] for i in ids], device=device)
         weight = model.get_output_embeddings().weight.detach().index_select(0, index).float().clone()
 
-        def _v67ub3xu71brsc1w0l52j(x):
+        def readout(x):
             with torch.autocast(device_type=x.device.type, enabled=False):
                 return torch.nn.functional.linear(x.float(), weight).float()
-        self.bench = fb.Bench(model.model, _v67ub3xu71brsc1w0l52j, self.tokenizer, header=fb.system_header(self.tokenizer))
+
+        self.bench = fb.Bench(model.model, readout, self.tokenizer, header=fb.system_header(self.tokenizer))
         self.max_length, self.n_seq_max, self.recipe = (int(max_length), 1, bool(recipe))
         cuda = self.bench.device.type == 'cuda'
         self.graph = recipe and cuda
         self.exact_max, self.graph_max = route_limits(self.quant['precision'], exact_max, graph_max)
-        self._v5wz3n1fab22ol5uhwgzb = fb._v83m8rh6inetzovw1w89s(self.bench, stable_header(self.tokenizer, self.bench.header), graph=self.graph, bucket=GRAPH_BUCKET, graph_max=self.graph_max)
+        self.engine = fb.PrefillEngine(
+            self.bench,
+            stable_header(self.tokenizer, self.bench.header),
+            graph=self.graph,
+            bucket=GRAPH_BUCKET,
+            graph_max=self.graph_max,
+        )
         self.fast = None
         if recipe:
-            import m5k7yldwzx2gowr44m6pk as _v6ur7q369jbjyz1zwxrpd
-            import me8tcb8ro755mvb8keg6p as _v42qit0g7jmeue13rbjti
-            import m4042euhfp7ynv7osi045 as frt
-            self.fast = frt.FastRuntime(_v42qit0g7jmeue13rbjti.runtime(self.bench, _v6ur7q369jbjyz1zwxrpd.CUT, _v42qit0g7jmeue13rbjti.EXT), **frt.runtime_options())
+            import long_input as long_input
+            import long_input_state as long_state
+            import fast_runtime as frt
+
+            self.fast = frt.FastRuntime(
+                long_state.runtime(self.bench, long_input.CUT, long_state.EXT), **frt.runtime_options()
+            )
         self.routes = {'graph': 0, 'exact': 0, 'long': 0}
-        import m8ltkzlxslgbyp0pozv27 as route_tune
+        import route_tune as route_tune
+
         self.profile = route_tune.default(self.quant['precision'])
         self.profile['exact_max'], self.profile['graph_max'] = (self.exact_max, self.graph_max)
         self.fixed_limits = bool(exact_max or graph_max)
@@ -249,16 +342,21 @@ class HFJudge:
             prof['exact_max'], prof['graph_max'] = (self.exact_max, self.graph_max)
         self.exact_max = int(prof['exact_max'])
         self.graph_max = min(int(prof['graph_max']), self.exact_max) // GRAPH_BUCKET * GRAPH_BUCKET
-        self._v5wz3n1fab22ol5uhwgzb.graph_max = self.graph_max
+        self.engine.graph_max = self.graph_max
         self.bf16_from = int(prof.get('bf16_from') or 0) if self.dual else 0
         if getattr(self, 'memory_profile', 'standard') == 'lean':
             prof['fast_buckets'] = []
         buckets = sorted((b for b in prof.get('fast_buckets') or () if b > self.exact_max and b <= self.max_length))
         prof['fast_buckets'] = buckets
         if self.fast is not None and self.graph:
-            import m4042euhfp7ynv7osi045 as frt
+            import fast_runtime as frt
+
             old = self.fast.graph
-            self.fast.graph = frt.F1cGraph(self.fast.rt, buckets, lean=self.fast.lean, max_window=FAST_GRAPH_MAX_WINDOW) if buckets else None
+            self.fast.graph = (
+                frt.StaleStateGraph(self.fast.rt, buckets, lean=self.fast.lean, max_window=FAST_GRAPH_MAX_WINDOW)
+                if buckets
+                else None
+            )
             self.fast.use_graph = self.fast.graph is not None
             del old
         self.profile = prof
@@ -275,35 +373,44 @@ class HFJudge:
         widths = []
         for e in enc:
             ids = e[3]
-            start = self._v5wz3n1fab22ol5uhwgzb.H if self._v5wz3n1fab22ol5uhwgzb.H and len(ids) > self._v5wz3n1fab22ol5uhwgzb.H and (tuple(ids[:self._v5wz3n1fab22ol5uhwgzb.H]) == self._v5wz3n1fab22ol5uhwgzb.header_ids) else 0
+            start = (
+                self.engine.H
+                if self.engine.H
+                and len(ids) > self.engine.H
+                and (tuple(ids[: self.engine.H]) == self.engine.header_ids)
+                else 0
+            )
             w = len(ids) - start
-            if not (self.graph and w <= self._v5wz3n1fab22ol5uhwgzb.graph_max):
+            if not (self.graph and w <= self.engine.graph_max):
                 return None
             widths.append(w)
         return widths
 
     def replay_cheaper(self, enc, shared):
         widths = self.replay_widths(enc)
-        return widths is not None and sum((self.graph_ms(-(-w // GRAPH_BUCKET) * GRAPH_BUCKET) for w in widths)) < self.eager_ms(len(enc), shared)
+        return widths is not None and sum(
+            (self.graph_ms(-(-w // GRAPH_BUCKET) * GRAPH_BUCKET) for w in widths)
+        ) < self.eager_ms(len(enc), shared)
 
     def long_logits(self, ids, s):
         x = torch.tensor([ids], device=self.bench.device)
         bf16_from = getattr(self, 'bf16_from', 0)
         if bf16_from and len(ids) >= bf16_from:
-            import m59i8a56wgcx69l9bd9nz as w8_runtime
+            import int8_runtime as int8_runtime
+
             graph, self.fast.graph = (self.fast.graph, None)
-            w8_runtime.PRECISION['mode'] = 'bf16'
+            int8_runtime.PRECISION['mode'] = 'bf16'
             try:
-                z = self.fast.fast(x, s, ids, '_v9qzrgapy1ah7g1jj5alh', False)
+                z = self.fast.fast(x, s, ids, 'stale_state', False)
             finally:
-                w8_runtime.PRECISION['mode'] = 'int8'
+                int8_runtime.PRECISION['mode'] = 'int8'
                 self.fast.graph = graph
             self.routes['long_bf16'] = self.routes.get('long_bf16', 0) + 1
         else:
             graph = getattr(self.fast, 'graph', None)
             if graph is not None and graph.plan(x, s, ids) is not None:
                 self.routes['long_graph'] = self.routes.get('long_graph', 0) + 1
-            z = self.fast.fast(x, s, ids, '_v9qzrgapy1ah7g1jj5alh', False)
+            z = self.fast.fast(x, s, ids, 'stale_state', False)
         self.routes['long'] += 1
         return z.float().reshape(-1).clone()
 
@@ -318,10 +425,10 @@ class HFJudge:
         if self.fast is not None and len(ids) > getattr(self, 'exact_max', EXACT_MAX) and s:
             z = self.long_logits(ids, s)
         else:
-            self.routes['graph' if self._v5wz3n1fab22ol5uhwgzb.plan(x, ids)[2] else 'exact'] += 1
-            z = self._v5wz3n1fab22ol5uhwgzb(x, ids)
+            self.routes['graph' if self.engine.plan(x, ids)[2] else 'exact'] += 1
+            z = self.engine(x, ids)
         z = z.float().reshape(-1).clone()
-        return (z[:2] if row['kind'].lower() == 'noul' else z[2:2 + len(row['candidates'])], len(ids))
+        return (z[:2] if row['kind'].lower() == 'noul' else z[2 : 2 + len(row['candidates'])], len(ids))
 
     @torch.inference_mode()
     def judge(self, rows, *, share_prefix=False, report=None, reasoning='off', **options):
@@ -341,7 +448,7 @@ class HFJudge:
         try:
             with _ENCODE_LOCK:
                 for row in rows:
-                    if row.get('_v6gd7oavvss5c4jnyhxhc') is not None or row.get('images'):
+                    if row.get('expert') is not None or row.get('images'):
                         raise ValueError('This release evaluates text only')
                 served = [serving_row(row) for row in rows]
                 shared = None
@@ -360,8 +467,9 @@ class HFJudge:
 
     @torch.inference_mode()
     def judge_many(self, requests, on_result=None, encoded=None):
-        import m7ml5d1vtymnzohdbris7 as fork
-        _v5wz3n1fab22ol5uhwgzb, dev = (self._v5wz3n1fab22ol5uhwgzb, self.bench.device)
+        import fork as fork
+
+        engine, dev = (self.engine, self.bench.device)
         exact_max = getattr(self, 'exact_max', EXACT_MAX)
         out = [None] * len(requests)
         z, lengths, computed = ({}, {}, {})
@@ -377,10 +485,18 @@ class HFJudge:
                 lengths[i, j] = len(ids)
             if len(enc) > 1:
                 p = fork.common_prefix([e[3] for e in enc])
-                start = _v5wz3n1fab22ol5uhwgzb.H if _v5wz3n1fab22ol5uhwgzb.H and p > _v5wz3n1fab22ol5uhwgzb.H and (tuple(enc[0][3][:_v5wz3n1fab22ol5uhwgzb.H]) == _v5wz3n1fab22ol5uhwgzb.header_ids) else 0
+                start = (
+                    engine.H if engine.H and p > engine.H and (tuple(enc[0][3][: engine.H]) == engine.header_ids) else 0
+                )
                 fg = getattr(self, 'fork_graphs', None)
-                graphable = fg is not None and start == _v5wz3n1fab22ol5uhwgzb.H and (fg.keys(p - start, len(enc), max((len(e[3]) - p for e in enc))) is not None)
-                if p - start >= FORK_MIN and (graphable or not (getattr(self, 'profile', None) and self.replay_cheaper(enc, True))):
+                graphable = (
+                    fg is not None
+                    and start == engine.H
+                    and (fg.keys(p - start, len(enc), max((len(e[3]) - p for e in enc))) is not None)
+                )
+                if p - start >= FORK_MIN and (
+                    graphable or not (getattr(self, 'profile', None) and self.replay_cheaper(enc, True))
+                ):
                     forks.append((p, start, enc))
                     continue
                 if p - start >= FORK_MIN:
@@ -391,16 +507,25 @@ class HFJudge:
                 (longs if self.fast is not None and len(e[3]) > exact_max and e[4] else singles).append(e)
 
         def put(i, j, row, logits):
-            z[i, j] = logits[:2] if row['kind'].lower() == 'noul' else logits[2:2 + len(row['candidates'])]
+            z[i, j] = logits[:2] if row['kind'].lower() == 'noul' else logits[2 : 2 + len(row['candidates'])]
             computed[i] = computed.get(i, 0)
 
         def finish(i):
             if out[i] is None:
                 rows = requests[i]
-                out[i] = ([z[i, j].softmax(-1).tolist() for j in range(len(rows))], [lengths[i, j] for j in range(len(rows))], computed.get(i, 0))
+                out[i] = (
+                    [z[i, j].softmax(-1).tolist() for j in range(len(rows))],
+                    [lengths[i, j] for j in range(len(rows))],
+                    computed.get(i, 0),
+                )
             if on_result is not None:
                 on_result(i, out[i])
-        long_req = {i for i, rows in enumerate(requests) if out[i] is None and any((lengths[i, j] > exact_max for j in range(len(rows))))}
+
+        long_req = {
+            i
+            for i, rows in enumerate(requests)
+            if out[i] is None and any((lengths[i, j] > exact_max for j in range(len(rows))))
+        }
         for i in range(len(requests)):
             if out[i] is not None:
                 finish(i)
@@ -415,25 +540,29 @@ class HFJudge:
         return out
 
     def _run_phase(self, longs, forks, singles, put, computed):
-        _v5wz3n1fab22ol5uhwgzb, dev = (self._v5wz3n1fab22ol5uhwgzb, self.bench.device)
+        engine, dev = (self.engine, self.bench.device)
         for i, j, row, ids, s in longs:
             put(i, j, row, self.long_logits(ids, s))
             computed[i] += len(ids)
-        _vdnc499tgp6sg4zoz40ju = getattr(self, '_vdnc499tgp6sg4zoz40ju', None)
-        if _vdnc499tgp6sg4zoz40ju is not None and forks:
-            reqs = [dict(questions=[e[3] for e in short], boundary=min((e[4] or p for e in short))) for p, _, short in forks]
-            for (p, _, short), zs in zip(forks, _vdnc499tgp6sg4zoz40ju(reqs)):
+        batched_forks = getattr(self, 'batched_forks', None)
+        if batched_forks is not None and forks:
+            reqs = [
+                dict(questions=[e[3] for e in short], boundary=min((e[4] or p for e in short))) for p, _, short in forks
+            ]
+            for (p, _, short), zs in zip(forks, batched_forks(reqs)):
                 i = short[0][0]
                 for (_, j, row, _, _), zz in zip(short, zs):
                     put(i, j, row, zz.float().reshape(-1))
                 computed[i] += p + sum((len(e[3]) - p for e in short))
-            self.routes['_vdnc499tgp6sg4zoz40ju'] = self.routes.get('_vdnc499tgp6sg4zoz40ju', 0) + sum((len(short) for _, _, short in forks))
+            self.routes['batched_forks'] = self.routes.get('batched_forks', 0) + sum(
+                (len(short) for _, _, short in forks)
+            )
             forks = []
         cap = getattr(self, 'batch_tokens', BATCH_TOKENS)
         for p, start, short in forks:
             i = short[0][0]
             fg = getattr(self, 'fork_graphs', None)
-            if fg is not None and start == _v5wz3n1fab22ol5uhwgzb.H:
+            if fg is not None and start == engine.H:
                 tails = [e[3][p:] for e in short]
                 zz = fg.run(short[0][3][start:p], tails)
                 if zz is not None:
@@ -453,12 +582,12 @@ class HFJudge:
             if cur:
                 chunks.append(cur)
             for ks in chunks:
-                states = _v5wz3n1fab22ol5uhwgzb.prefix_states(torch.tensor([short[0][3][start:p]], device=dev), start)
+                states = engine.prefix_states(torch.tensor([short[0][3][start:p]], device=dev), start)
                 tails = [short[k][3][p:] for k in ks]
                 x = torch.zeros((len(tails), max(map(len, tails))), dtype=torch.long, device=dev)
                 for n, t in enumerate(tails):
-                    x[n, :len(t)] = torch.tensor(t, device=dev)
-                zz = _v5wz3n1fab22ol5uhwgzb.run_batch(x, p, torch.tensor([p + len(t) for t in tails], device=dev), states).float()
+                    x[n, : len(t)] = torch.tensor(t, device=dev)
+                zz = engine.run_batch(x, p, torch.tensor([p + len(t) for t in tails], device=dev), states).float()
                 for n, k in enumerate(ks):
                     _, j, row, _, _ = short[k]
                     put(i, j, row, zz[n])
@@ -468,9 +597,15 @@ class HFJudge:
         replay = [e[:5] for e in singles if len(e) > 5]
         singles = [e for e in singles if len(e) == 5]
         for e in sorted(singles, key=lambda e: len(e[3])):
-            start = _v5wz3n1fab22ol5uhwgzb.H if _v5wz3n1fab22ol5uhwgzb.H and len(e[3]) > _v5wz3n1fab22ol5uhwgzb.H and (tuple(e[3][:_v5wz3n1fab22ol5uhwgzb.H]) == _v5wz3n1fab22ol5uhwgzb.header_ids) else 0
+            start = (
+                engine.H if engine.H and len(e[3]) > engine.H and (tuple(e[3][: engine.H]) == engine.header_ids) else 0
+            )
             width = len(e[3]) - start
-            if cur and (cur[0][0] != start or len(cur) >= BATCH_ROWS or width * (len(cur) + 1) > getattr(self, 'batch_tokens', BATCH_TOKENS)):
+            if cur and (
+                cur[0][0] != start
+                or len(cur) >= BATCH_ROWS
+                or width * (len(cur) + 1) > getattr(self, 'batch_tokens', BATCH_TOKENS)
+            ):
                 groups.append(cur)
                 cur = []
             cur.append((start, width, e))
@@ -478,7 +613,12 @@ class HFJudge:
             groups.append(cur)
         split = []
         for g in groups:
-            if len(g) > 1 and self.batch_graph_key(g) is None and getattr(self, 'profile', None) and self.replay_cheaper([e for _, _, e in g], False):
+            if (
+                len(g) > 1
+                and self.batch_graph_key(g) is None
+                and getattr(self, 'profile', None)
+                and self.replay_cheaper([e for _, _, e in g], False)
+            ):
                 self.routes['batch_graph'] = self.routes.get('batch_graph', 0) + len(g)
                 split.extend(([x] for x in g))
             else:
@@ -488,27 +628,27 @@ class HFJudge:
             if len(g) == 1:
                 _, _, (i, j, row, ids, _) = g[0]
                 x = torch.tensor([ids], device=dev)
-                self.routes['graph' if _v5wz3n1fab22ol5uhwgzb.plan(x, ids)[2] else 'exact'] += 1
-                put(i, j, row, _v5wz3n1fab22ol5uhwgzb(x, ids).float().reshape(-1).clone())
+                self.routes['graph' if engine.plan(x, ids)[2] else 'exact'] += 1
+                put(i, j, row, engine(x, ids).float().reshape(-1).clone())
             else:
                 start = g[0][0]
                 bucket = int(getattr(self, 'batch_bucket', 0) or 0) or 1
                 wb = -(-max((w for _, w, _ in g)) // bucket) * bucket
                 key = self.batch_graph_key(g)
-                _v19ilmimnz2cxgcmg5d4x = self.batch_graphs.get(key) if key is not None else None
-                x = _v19ilmimnz2cxgcmg5d4x.ids if _v19ilmimnz2cxgcmg5d4x is not None else torch.zeros((len(g), wb), dtype=torch.long, device=dev)
-                if _v19ilmimnz2cxgcmg5d4x is not None:
+                bg = self.batch_graphs.get(key) if key is not None else None
+                x = bg.ids if bg is not None else torch.zeros((len(g), wb), dtype=torch.long, device=dev)
+                if bg is not None:
                     x.zero_()
                 for k, (_, w, e) in enumerate(g):
                     x[k, :w] = torch.tensor(e[3][start:], device=dev)
                 limit = torch.tensor([start + w for _, w, _ in g], device=dev)
-                if _v19ilmimnz2cxgcmg5d4x is not None:
-                    _v19ilmimnz2cxgcmg5d4x.limit.copy_(limit)
-                    _v19ilmimnz2cxgcmg5d4x.graph.replay()
-                    zz = _v19ilmimnz2cxgcmg5d4x.out.float().clone()
+                if bg is not None:
+                    bg.limit.copy_(limit)
+                    bg.graph.replay()
+                    zz = bg.out.float().clone()
                     self.routes['batch_graphed'] = self.routes.get('batch_graphed', 0) + len(g)
                 else:
-                    zz = _v5wz3n1fab22ol5uhwgzb.run_batch(x, start, limit).float()
+                    zz = engine.run_batch(x, start, limit).float()
                 for k, (_, _, (i, j, row, _, _)) in enumerate(g):
                     put(i, j, row, zz[k])
                 self.routes['batch'] = self.routes.get('batch', 0) + len(g)
@@ -520,29 +660,30 @@ class HFJudge:
 
     def batch_graph_key(self, g):
         graphs = getattr(self, 'batch_graphs', None)
-        if not graphs or g[0][0] != self._v5wz3n1fab22ol5uhwgzb.H:
+        if not graphs or g[0][0] != self.engine.H:
             return None
         bucket = int(getattr(self, 'batch_bucket', 0) or 0) or 1
         key = (len(g), -(-max((w for _, w, _ in g)) // bucket) * bucket)
         return key if key in graphs else None
 
     def capture_batch(self, b, wb):
-        _v5wz3n1fab22ol5uhwgzb, dev, start = (self._v5wz3n1fab22ol5uhwgzb, self.bench.device, self._v5wz3n1fab22ol5uhwgzb.H)
+        engine, dev, start = (self.engine, self.bench.device, self.engine.H)
         ids = torch.zeros((b, wb), dtype=torch.long, device=dev)
         limit = torch.full((b,), start + wb, dtype=torch.long, device=dev)
         g = types.SimpleNamespace(ids=ids, limit=limit, graph=None, out=None)
-        fn = lambda: _v5wz3n1fab22ol5uhwgzb.run_batch(g.ids, start, g.limit)
-        if _v5wz3n1fab22ol5uhwgzb.pool is None:
-            _v5wz3n1fab22ol5uhwgzb.pool = torch.cuda.graph_pool_handle()
-        import m8rhab841mmga1gnl3mp8 as fb
+        fn = lambda: engine.run_batch(g.ids, start, g.limit)
+        if engine.pool is None:
+            engine.pool = torch.cuda.graph_pool_handle()
+        import prefill_engine as fb
+
         side = torch.cuda.Stream()
         side.wait_stream(torch.cuda.current_stream())
         with torch.cuda.stream(side):
-            for _ in range(fb._v6ff1myegbtwfltdvya89):
+            for _ in range(fb.GRAPH_WARMUP):
                 fn()
         torch.cuda.current_stream().wait_stream(side)
         g.graph = torch.cuda.CUDAGraph()
-        with torch.cuda.graph(g.graph, pool=_v5wz3n1fab22ol5uhwgzb.pool):
+        with torch.cuda.graph(g.graph, pool=engine.pool):
             g.out = fn()
         self.batch_graphs[b, wb] = g
         return g
@@ -550,26 +691,32 @@ class HFJudge:
     def defer_graphs(self):
         if not self.graph:
             return 0
-        start = self._v5wz3n1fab22ol5uhwgzb.H
-        plan = [('_v5wz3n1fab22ol5uhwgzb', (start, wb)) for wb in range(GRAPH_BUCKET, self._v5wz3n1fab22ol5uhwgzb.graph_max + 1, GRAPH_BUCKET)]
+        start = self.engine.H
+        plan = [('engine', (start, wb)) for wb in range(GRAPH_BUCKET, self.engine.graph_max + 1, GRAPH_BUCKET)]
         g = self.fast.graph if self.fast is not None else None
         fg = self.make_fork_graphs()
         if fg is not None:
             plan += [('fork', ('tails', (b, t))) for t in fb_tails() for b in fb_sizes()]
-            plan += [('fork', ('prefix', sb)) for sb in range(GRAPH_BUCKET, self._v5wz3n1fab22ol5uhwgzb.graph_max + 1, GRAPH_BUCKET)]
+            plan += [('fork', ('prefix', sb)) for sb in range(GRAPH_BUCKET, self.engine.graph_max + 1, GRAPH_BUCKET)]
         if g is not None:
             hs = self.fast.rt.H
-            plan += [('fast', ('_v9qzrgapy1ah7g1jj5alh', hs, nb, min(wb, nb))) for nb in g.buckets for wb in FAST_GRAPH_WINDOWS if nb > hs]
+            plan += [
+                ('fast', ('stale_state', hs, nb, min(wb, nb)))
+                for nb in g.buckets
+                for wb in FAST_GRAPH_WINDOWS
+                if nb > hs
+            ]
             g.defer = True
-        if self._v5wz3n1fab22ol5uhwgzb.H and self.recipe and (getattr(self, 'memory_profile', 'standard') != 'lean'):
+        if self.engine.H and self.recipe and (getattr(self, 'memory_profile', 'standard') != 'lean'):
             plan += [('batch', bw) for bw in self.batch_shapes(BATCH_GRAPH_SIZES, graphs=True)]
-        self._v5wz3n1fab22ol5uhwgzb.defer = True
-        self._v7o47h2cyt6c1gl8a4cof = collections.deque(plan)
+        self.engine.defer = True
+        self._graph_plan = collections.deque(plan)
         return len(plan)
 
     def tune_step(self):
-        import m92dxpxu92qra09wgs5nj as kernel_state
-        import m9qy9tkk89d48t0lxgr4e as ts
+        import kernel_state as kernel_state
+        import http_server as ts
+
         if self.bench.device.type != 'cuda':
             return False
         identifier = kernel_state.unpin_next()
@@ -577,17 +724,17 @@ class HFJudge:
             return False
         try:
             with torch.inference_mode():
-                ids, _ = self.encode_request(ts._v2lbiu05abgrrc954oo6t(self.tokenizer, 128, 'noul'))[0]
+                ids, _ = self.encode_request(ts.warmup_rows(self.tokenizer, 128, 'noul'))[0]
                 x = torch.tensor([ids], device=self.bench.device)
-                start = self._v5wz3n1fab22ol5uhwgzb.H if self._v5wz3n1fab22ol5uhwgzb.hit(x, ids) else 0
-                self._v5wz3n1fab22ol5uhwgzb.run(x[:, start:], start, len(ids) - start)
+                start = self.engine.H if self.engine.hit(x, ids) else 0
+                self.engine.run(x[:, start:], start, len(ids) - start)
                 if self.fast is not None and self.exact_max + 64 < self.max_length:
-                    rows = ts._v2lbiu05abgrrc954oo6t(self.tokenizer, self.exact_max + 64, 'noul')
+                    rows = ts.warmup_rows(self.tokenizer, self.exact_max + 64, 'noul')
                     ids, s = self.encode_request(rows)[0]
                     if s:
                         graph, self.fast.graph = (self.fast.graph, None)
                         try:
-                            self.fast.fast(torch.tensor([ids], device=self.bench.device), s, ids, '_v9qzrgapy1ah7g1jj5alh', False)
+                            self.fast.fast(torch.tensor([ids], device=self.bench.device), s, ids, 'stale_state', False)
                         finally:
                             self.fast.graph = graph
         finally:
@@ -604,7 +751,8 @@ class HFJudge:
         if now - self.__dict__.get('_tuning_saved_at', 0.0) < every:
             return False
         self._tuning_saved_at = now
-        import m92dxpxu92qra09wgs5nj as kernel_state
+        import kernel_state as kernel_state
+
         state = kernel_state.capture(self.bench.device)
         n = sum((len(k['entries']) for k in (state or {}).get('kernels', {}).values()))
         if not state or n <= self.__dict__.get('_tuning_keys', 0):
@@ -619,15 +767,25 @@ class HFJudge:
         return True
 
     def warm_state(self):
-        _v5wz3n1fab22ol5uhwgzb, g = (self._v5wz3n1fab22ol5uhwgzb, self.fast.graph if self.fast is not None else None)
+        engine, g = (self.engine, self.fast.graph if self.fast is not None else None)
         fg = getattr(self, 'fork_graphs', None)
-        ready = len(_v5wz3n1fab22ol5uhwgzb.graphs) + (len(g.graphs) if g is not None else 0) + len(self.batch_graphs) + (len(fg.prefix) + len(fg.tails) if fg is not None else 0)
-        queued = len(self.__dict__.get('_v7o47h2cyt6c1gl8a4cof') or ()) + len(_v5wz3n1fab22ol5uhwgzb.pending) + (len(g.pending) if g is not None else 0) + (len(fg.pending) if fg is not None else 0)
+        ready = (
+            len(engine.graphs)
+            + (len(g.graphs) if g is not None else 0)
+            + len(self.batch_graphs)
+            + (len(fg.prefix) + len(fg.tails) if fg is not None else 0)
+        )
+        queued = (
+            len(self.__dict__.get('_graph_plan') or ())
+            + len(engine.pending)
+            + (len(g.pending) if g is not None else 0)
+            + (len(fg.pending) if fg is not None else 0)
+        )
         return {'graphs_ready': ready, 'graphs_queued': queued, 'warming': queued > 0}
 
     def hot_pending(self, min_hits=HOT_BUCKET_HITS):
-        _v5wz3n1fab22ol5uhwgzb, g = (self._v5wz3n1fab22ol5uhwgzb, self.fast.graph if self.fast is not None else None)
-        for tuner in (_v5wz3n1fab22ol5uhwgzb, g, getattr(self, 'fork_graphs', None)):
+        engine, g = (self.engine, self.fast.graph if self.fast is not None else None)
+        for tuner in (engine, g, getattr(self, 'fork_graphs', None)):
             hits = getattr(tuner, 'hits', None) or {}
             if tuner is not None and any((hits.get(k, 0) >= min_hits for k in tuner.pending)):
                 return True
@@ -635,7 +793,11 @@ class HFJudge:
 
     def hottest_pending(self):
         best = None
-        for kind, tuner in (('_v5wz3n1fab22ol5uhwgzb', self._v5wz3n1fab22ol5uhwgzb), ('fast', self.fast.graph if self.fast is not None else None), ('fork', getattr(self, 'fork_graphs', None))):
+        for kind, tuner in (
+            ('engine', self.engine),
+            ('fast', self.fast.graph if self.fast is not None else None),
+            ('fork', getattr(self, 'fork_graphs', None)),
+        ):
             hits = getattr(tuner, 'hits', None) or {}
             for key in tuner.pending if tuner is not None else ():
                 n = hits.get(key, 0)
@@ -644,17 +806,17 @@ class HFJudge:
         return None if best is None else best[1:]
 
     def capture_step(self, hot=False):
-        _v5wz3n1fab22ol5uhwgzb, g = (self._v5wz3n1fab22ol5uhwgzb, self.fast.graph if self.fast is not None else None)
+        engine, g = (self.engine, self.fast.graph if self.fast is not None else None)
         fg = getattr(self, 'fork_graphs', None)
-        plan = self.__dict__.setdefault('_v7o47h2cyt6c1gl8a4cof', collections.deque())
+        plan = self.__dict__.setdefault('_graph_plan', collections.deque())
         first = HFJudge.hottest_pending(self) if hot else None
         while True:
             if first is not None:
                 kind, key = first
-                {'_v5wz3n1fab22ol5uhwgzb': _v5wz3n1fab22ol5uhwgzb, 'fast': g, 'fork': fg}[kind].pending.remove(key)
+                {'engine': engine, 'fast': g, 'fork': fg}[kind].pending.remove(key)
                 first = None
-            elif _v5wz3n1fab22ol5uhwgzb.pending:
-                kind, key = ('_v5wz3n1fab22ol5uhwgzb', _v5wz3n1fab22ol5uhwgzb.pending.pop(0))
+            elif engine.pending:
+                kind, key = ('engine', engine.pending.pop(0))
             elif fg is not None and fg.pending:
                 kind, key = ('fork', fg.pending.pop(0))
             elif g is not None and g.pending:
@@ -664,13 +826,17 @@ class HFJudge:
             else:
                 return False
             with torch.inference_mode():
-                if kind == '_v5wz3n1fab22ol5uhwgzb' and key not in _v5wz3n1fab22ol5uhwgzb.graphs:
-                    _v5wz3n1fab22ol5uhwgzb.capture(*key)
+                if kind == 'engine' and key not in engine.graphs:
+                    engine.capture(*key)
                 elif kind == 'fast' and g is not None and (key not in g.graphs) and (len(g.graphs) < g.max_graphs):
                     g.capture(key, bounds=True)
                 elif kind == 'batch' and key not in self.batch_graphs:
                     self.capture_batch(*key)
-                elif kind == 'fork' and fg is not None and (key[1] not in (fg.prefix if key[0] == 'prefix' else fg.tails)):
+                elif (
+                    kind == 'fork'
+                    and fg is not None
+                    and (key[1] not in (fg.prefix if key[0] == 'prefix' else fg.tails))
+                ):
                     fg.capture(*key)
                 else:
                     continue
@@ -678,7 +844,7 @@ class HFJudge:
             return True
 
     def batch_shapes(self, sizes, graphs=False):
-        top = min(self.exact_max, self.max_length) - self._v5wz3n1fab22ol5uhwgzb.H
+        top = min(self.exact_max, self.max_length) - self.engine.H
         out = []
         for b in sizes:
             for wb in range(GRAPH_BUCKET, top // GRAPH_BUCKET * GRAPH_BUCKET + 1, GRAPH_BUCKET):
@@ -688,36 +854,36 @@ class HFJudge:
         return out
 
     def prewarm_batches(self, sizes=(16, 8, 4, 2)):
-        _v5wz3n1fab22ol5uhwgzb, dev = (self._v5wz3n1fab22ol5uhwgzb, self.bench.device)
+        engine, dev = (self.engine, self.bench.device)
         n = 0
         with torch.inference_mode():
             for b, wb in self.batch_shapes(sizes):
                 if (b, wb) in self.batch_graphs:
                     continue
                 x = torch.zeros((b, wb), dtype=torch.long, device=dev)
-                _v5wz3n1fab22ol5uhwgzb.run_batch(x, _v5wz3n1fab22ol5uhwgzb.H, torch.full((b,), _v5wz3n1fab22ol5uhwgzb.H + wb, dtype=torch.long, device=dev))
+                engine.run_batch(x, engine.H, torch.full((b,), engine.H + wb, dtype=torch.long, device=dev))
                 n += 1
         return n
 
     def precapture(self):
         if not self.graph:
             return 0
-        start = self._v5wz3n1fab22ol5uhwgzb.H
+        start = self.engine.H
         with torch.inference_mode():
-            for wb in range(GRAPH_BUCKET, self._v5wz3n1fab22ol5uhwgzb.graph_max + 1, GRAPH_BUCKET):
-                if (start, wb) not in self._v5wz3n1fab22ol5uhwgzb.graphs:
-                    self._v5wz3n1fab22ol5uhwgzb.capture(start, wb)
+            for wb in range(GRAPH_BUCKET, self.engine.graph_max + 1, GRAPH_BUCKET):
+                if (start, wb) not in self.engine.graphs:
+                    self.engine.capture(start, wb)
             g = self.fast.graph if self.fast is not None else None
             if g is not None:
                 hs = self.fast.rt.H
                 for nb in g.buckets:
                     for wb in FAST_GRAPH_WINDOWS:
-                        key = ('_v9qzrgapy1ah7g1jj5alh', hs, nb, min(wb, nb))
+                        key = ('stale_state', hs, nb, min(wb, nb))
                         if nb > hs and key not in g.graphs and (len(g.graphs) < g.max_graphs):
                             g.s_len.fill_(max(hs, nb - min(wb, nb)))
                             g.n_len.fill_(nb)
                             g.capture(key)
-            if self._v5wz3n1fab22ol5uhwgzb.H and self.recipe and (getattr(self, 'memory_profile', 'standard') != 'lean'):
+            if self.engine.H and self.recipe and (getattr(self, 'memory_profile', 'standard') != 'lean'):
                 for b, wb in self.batch_shapes(BATCH_GRAPH_SIZES, graphs=True):
                     if (b, wb) not in self.batch_graphs:
                         self.capture_batch(b, wb)
@@ -728,7 +894,7 @@ class HFJudge:
                     for b in fb_sizes():
                         if (b, t) not in fg.tails:
                             fg.capture('tails', (b, t))
-                for sb in range(GRAPH_BUCKET, self._v5wz3n1fab22ol5uhwgzb.graph_max + 1, GRAPH_BUCKET):
+                for sb in range(GRAPH_BUCKET, self.engine.graph_max + 1, GRAPH_BUCKET):
                     if sb not in fg.prefix:
                         fg.capture('prefix', sb)
         return HFJudge.warm_state(self)['graphs_ready']
@@ -736,57 +902,68 @@ class HFJudge:
     def make_fork_graphs(self):
         if getattr(self, 'fork_graphs', None) is not None:
             return self.fork_graphs
-        if not (self.graph and self._v5wz3n1fab22ol5uhwgzb.H and self.recipe and (getattr(self, 'memory_profile', 'standard') != 'lean')):
+        if not (
+            self.graph and self.engine.H and self.recipe and (getattr(self, 'memory_profile', 'standard') != 'lean')
+        ):
             return None
-        import m8rhab841mmga1gnl3mp8 as fb
-        self.fork_graphs = fb._vd7pzkvjpkbqbz6iv7dbc(self._v5wz3n1fab22ol5uhwgzb)
+        import prefill_engine as fb
+
+        self.fork_graphs = fb.ForkGraphs(self.engine)
         return self.fork_graphs
 
     def calibration_run(self, kind, n, q=1):
         import random
-        import m59i8a56wgcx69l9bd9nz as w8_runtime
-        _v5wz3n1fab22ol5uhwgzb, dev, fast = (self._v5wz3n1fab22ol5uhwgzb, self.bench.device, self.fast)
+        import int8_runtime as int8_runtime
+
+        engine, dev, fast = (self.engine, self.bench.device, self.fast)
         if n > self.max_length:
             raise ValueError('over the served context')
         rng = random.Random(n * 31 + q)
-        head = list(_v5wz3n1fab22ol5uhwgzb.header_ids)
+        head = list(engine.header_ids)
         ids = head + [rng.randrange(1000, 60000) for _ in range(n - len(head))]
         x = torch.tensor([ids], device=dev)
         s = max(len(head), n - 160)
         if kind == 'graph':
-            start, width, graphed = _v5wz3n1fab22ol5uhwgzb.plan(x, ids)
+            start, width, graphed = engine.plan(x, ids)
             if not graphed:
                 raise ValueError('no graph at this length')
-            return _v5wz3n1fab22ol5uhwgzb(x, ids)
+            return engine(x, ids)
         if kind == 'exact':
-            start, width, _ = _v5wz3n1fab22ol5uhwgzb.plan(x, ids)
-            return _v5wz3n1fab22ol5uhwgzb.run(x[:, start:], start, width)
+            start, width, _ = engine.plan(x, ids)
+            return engine.run(x[:, start:], start, width)
         if kind in ('fast', 'fast_bf16'):
             graph, fast.graph = (fast.graph, None)
-            w8_runtime.PRECISION['mode'] = 'bf16' if kind == 'fast_bf16' else 'int8'
+            int8_runtime.PRECISION['mode'] = 'bf16' if kind == 'fast_bf16' else 'int8'
             try:
-                return fast.fast(x, s, ids, '_v9qzrgapy1ah7g1jj5alh', False)
+                return fast.fast(x, s, ids, 'stale_state', False)
             finally:
-                w8_runtime.PRECISION['mode'] = 'int8'
+                int8_runtime.PRECISION['mode'] = 'int8'
                 fast.graph = graph
         if kind == 'fast_graph':
-            import m4042euhfp7ynv7osi045 as frt
-            import m8ltkzlxslgbyp0pozv27 as route_tune
-            g = self._probe_graph = getattr(self, '_probe_graph', None) or frt.F1cGraph(fast.rt, [route_tune.EXACT_FLOOR + 512] + list(route_tune.FAST_CANDIDATES), lean=fast.lean, max_graphs=16)
-            out = g(x, s, ids, '_v9qzrgapy1ah7g1jj5alh')
+            import fast_runtime as frt
+            import route_tune as route_tune
+
+            g = self._probe_graph = getattr(self, '_probe_graph', None) or frt.StaleStateGraph(
+                fast.rt,
+                [route_tune.EXACT_FLOOR + 512] + list(route_tune.FAST_CANDIDATES),
+                lean=fast.lean,
+                max_graphs=16,
+            )
+            out = g(x, s, ids, 'stale_state')
             if out is None:
                 raise ValueError('no fast graph')
             return out
         if kind == 'fork':
-            start = _v5wz3n1fab22ol5uhwgzb.H
+            start = engine.H
             tails = [[rng.randrange(1000, 60000) for _ in range(40)] for _ in range(q)]
-            states = _v5wz3n1fab22ol5uhwgzb.prefix_states(x[:, start:], start)
+            states = engine.prefix_states(x[:, start:], start)
             t = torch.tensor(tails, device=dev)
-            return _v5wz3n1fab22ol5uhwgzb.run_batch(t, n, torch.full((q,), n + 40, device=dev), states)
+            return engine.run_batch(t, n, torch.full((q,), n + 40, device=dev), states)
         raise ValueError(kind)
 
     def tune(self, state_dir, mode='auto'):
-        import m8ltkzlxslgbyp0pozv27 as route_tune
+        import route_tune as route_tune
+
         prec = self.quant['precision']
         if getattr(self, 'memory_profile', 'standard') == 'lean':
             mode = 'off'
@@ -795,13 +972,23 @@ class HFJudge:
         if self.recipe and self.bench.device.type == 'cuda' and (mode != 'off'):
             dev = self.bench.device
             props = torch.cuda.get_device_properties(dev)
-            key = route_tune.device_key(props.name, torch.cuda.get_device_capability(dev), props.total_memory, prec, self.dual)
+            key = route_tune.device_key(
+                props.name, torch.cuda.get_device_capability(dev), props.total_memory, prec, self.dual
+            )
             report['key'] = key
             prof = route_tune.load(state_dir, key)
             if prof is None:
                 try:
                     with torch.inference_mode():
-                        prof = route_tune.calibrate(self.calibration_run, prec, self.graph_max, sync=torch.cuda.synchronize, mem=lambda: torch.cuda.memory_reserved(dev), total=props.total_memory, dual=self.dual)
+                        prof = route_tune.calibrate(
+                            self.calibration_run,
+                            prec,
+                            self.graph_max,
+                            sync=torch.cuda.synchronize,
+                            mem=lambda: torch.cuda.memory_reserved(dev),
+                            total=props.total_memory,
+                            dual=self.dual,
+                        )
                     route_tune.save(state_dir, key, prof)
                 except Exception as exc:
                     report['failed'] = type(exc).__name__
@@ -813,15 +1000,25 @@ class HFJudge:
             prof = route_tune.default(prec)
             prof['exact_max'], prof['graph_max'] = (self.exact_max, self.graph_max)
         prof = self.apply_profile(prof)
-        report.update({k: prof.get(k) for k in ('source', 'exact_max', 'graph_max', 'fast_buckets', 'bf16_from', 'calibration_s')})
-        report['precision_route'] = 'on (BF16 from %d tokens)' % self.bf16_from if self.bf16_from else 'on (INT8 everywhere: BF16 not faster)' if self.dual else 'off'
+        report.update(
+            {k: prof.get(k) for k in ('source', 'exact_max', 'graph_max', 'fast_buckets', 'bf16_from', 'calibration_s')}
+        )
+        report['precision_route'] = (
+            'on (BF16 from %d tokens)' % self.bf16_from
+            if self.bf16_from
+            else 'on (INT8 everywhere: BF16 not faster)'
+            if self.dual
+            else 'off'
+        )
         return report
+
+
 BATCH_SIZES = (16, 8)
 BATCH_SIZES_EAGER = (16, 8, 4, 2)
 PAD_MAX = 0.5
 
-class Batcher:
 
+class Batcher:
     def __init__(self, judge, max_rows=BATCH_ROWS * 4, policy='auto'):
         if policy not in ('auto', 'shaped', 'greedy'):
             raise ValueError('policy must be auto, shaped or greedy')
@@ -864,6 +1061,7 @@ class Batcher:
         def answer(k, res):
             items[k]['result'] = res
             items[k]['done'].set()
+
         kwargs = {}
         if any(('enc' in it for it in items)):
             kwargs['encoded'] = [it.get('enc') for it in items]
@@ -897,7 +1095,12 @@ class Batcher:
         hot_done = False
         while step is not None:
             hot_now = False
-            if hot is not None and (not hot_done) and (time.perf_counter() - self.__dict__.get('_hot_at', -1000000000.0) >= HOT_INTERVAL_S) and hot():
+            if (
+                hot is not None
+                and (not hot_done)
+                and (time.perf_counter() - self.__dict__.get('_hot_at', -1000000000.0) >= HOT_INTERVAL_S)
+                and hot()
+            ):
                 hot_done = hot_now = True
                 self._hot_at = time.perf_counter()
             else:
@@ -908,7 +1111,11 @@ class Batcher:
             try:
                 more = step(hot=True) if hot_now else step()
             except Exception as exc:
-                print(json.dumps({'graph_capture_failed': type(exc).__name__, 'detail': str(exc)[:200]}), file=sys.stderr, flush=True)
+                print(
+                    json.dumps({'graph_capture_failed': type(exc).__name__, 'detail': str(exc)[:200]}),
+                    file=sys.stderr,
+                    flush=True,
+                )
                 more = True
             if not more:
                 if not self.__dict__.get('_graphs_logged'):
@@ -941,15 +1148,15 @@ class Batcher:
         if enc is None or isinstance(enc, BaseException) or len(enc) != 1:
             return None
         ids = enc[0][0]
-        _v5wz3n1fab22ol5uhwgzb = getattr(self._judge, '_v5wz3n1fab22ol5uhwgzb', None)
-        h = int(getattr(_v5wz3n1fab22ol5uhwgzb, 'H', 0) or 0)
-        start = h if h and len(ids) > h and (tuple(ids[:h]) == tuple(_v5wz3n1fab22ol5uhwgzb.header_ids)) else 0
+        engine = getattr(self._judge, 'engine', None)
+        h = int(getattr(engine, 'H', 0) or 0)
+        start = h if h and len(ids) > h and (tuple(ids[:h]) == tuple(engine.header_ids)) else 0
         return (start, len(ids) - start)
 
     def _units(self, waiting):
         judge = self._judge
-        _v5wz3n1fab22ol5uhwgzb = getattr(judge, '_v5wz3n1fab22ol5uhwgzb', None)
-        graph_max = int(getattr(_v5wz3n1fab22ol5uhwgzb, 'graph_max', 0) or 0) if getattr(judge, 'graph', False) else 0
+        engine = getattr(judge, 'engine', None)
+        graph_max = int(getattr(engine, 'graph_max', 0) or 0) if getattr(judge, 'graph', False) else 0
         bucket = int(getattr(judge, 'batch_bucket', 0) or 0)
         shape = {id(it): self._shape(it) for it in waiting}
         units, left = ([], list(waiting))
@@ -957,19 +1164,27 @@ class Batcher:
             head, unit = (left[0], [left[0]])
             hs = shape[id(head)]
             if hs is not None:
-                peers = sorted((it for it in left if shape[id(it)] is not None and shape[id(it)][0] == hs[0]), key=lambda it: shape[id(it)][1])
+                peers = sorted(
+                    (it for it in left if shape[id(it)] is not None and shape[id(it)][0] == hs[0]),
+                    key=lambda it: shape[id(it)][1],
+                )
                 k = next((n for n, it in enumerate(peers) if it is head))
                 sizes = BATCH_SIZES_EAGER if hs[1] > graph_max else BATCH_SIZES if bucket else ()
                 for size in sizes:
                     best = None
                     for a in range(max(0, k - size + 1), min(k, len(peers) - size) + 1):
-                        ws = [shape[id(it)][1] for it in peers[a:a + size]]
+                        ws = [shape[id(it)][1] for it in peers[a : a + size]]
                         width = -(-ws[-1] // bucket) * bucket if bucket else ws[-1]
                         real, pad = (sum(ws), size * width - sum(ws))
-                        if size <= BATCH_ROWS and size * ws[-1] <= BATCH_TOKENS and (pad <= PAD_MAX * real) and (best is None or pad < best[0]):
+                        if (
+                            size <= BATCH_ROWS
+                            and size * ws[-1] <= BATCH_TOKENS
+                            and (pad <= PAD_MAX * real)
+                            and (best is None or pad < best[0])
+                        ):
                             best = (pad, a)
                     if best is not None:
-                        unit = peers[best[1]:best[1] + size]
+                        unit = peers[best[1] : best[1] + size]
                         break
             taken = {id(it) for it in unit}
             left = [it for it in left if id(it) not in taken]
@@ -1040,27 +1255,38 @@ class Batcher:
                 self._run(short)
                 lanes['short_cycles'] += 1
                 streak += 1
-KERNEL_PROFILE = 'kernel_profile_s2.json'
-_v8avhrah2rilxek288ji1 = 'profiles'
 
-def _ve2xl32kur2wbir4pc0oq():
-    folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'kernels', _v8avhrah2rilxek288ji1)
-    return sorted((os.path.join(folder, f) for f in os.listdir(folder) if f.endswith('.z'))) if os.path.isdir(folder) else []
+
+KERNEL_PROFILE = 'kernel_profile_s2.json'
+SEED_PROFILES = 'profiles'
+
+
+def seed_profiles():
+    folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'kernels', SEED_PROFILES)
+    return (
+        sorted((os.path.join(folder, f) for f in os.listdir(folder) if f.endswith('.z')))
+        if os.path.isdir(folder)
+        else []
+    )
+
 
 def read_profile(path):
     import zlib
+
     with open(path, 'rb') as f:
         data = f.read()
     return json.loads(zlib.decompress(data) if path.endswith('.z') else data)
 
+
 def pin_kernels(directory, device):
-    import m92dxpxu92qra09wgs5nj as kernel_state
+    import kernel_state as kernel_state
+
     device = torch.device(device)
     if device.type != 'cuda' or not torch.cuda.is_available():
         return {}
     path = Path(directory) / KERNEL_PROFILE if directory else None
     states = []
-    for candidate in ([str(path)] if path is not None and path.is_file() else []) + _ve2xl32kur2wbir4pc0oq():
+    for candidate in ([str(path)] if path is not None and path.is_file() else []) + seed_profiles():
         try:
             states.append(read_profile(candidate))
         except (ValueError, OSError):
@@ -1070,15 +1296,17 @@ def pin_kernels(directory, device):
     except Exception as exc:
         return {'failed': type(exc).__name__}
 
+
 def kernel_profile(judge, directory, warm, prewarm=False):
-    import m92dxpxu92qra09wgs5nj as kernel_state
+    import kernel_state as kernel_state
+
     device = judge.bench.device
     path = Path(directory) / KERNEL_PROFILE
     report = {'restored': False, 'saved': False}
     if device.type != 'cuda':
         warm()
         return report
-    for candidate in ([str(path)] if path.is_file() else []) + _ve2xl32kur2wbir4pc0oq():
+    for candidate in ([str(path)] if path.is_file() else []) + seed_profiles():
         try:
             kernel_state.restore(read_profile(candidate), device)
             report['restored'] = True
@@ -1104,44 +1332,68 @@ def kernel_profile(judge, directory, warm, prewarm=False):
                 pass
     return report
 
+
 def gguf_judge(gguf, tokenizer_dir, runtime_dir, n_ctx=8192, seqs=4, flash_attn=-1, recipe=True):
     from transformers import AutoTokenizer
-    from m1lb4jzkaeky3louxngpd import DirectJudge
+    from direct_backend import DirectJudge
 
     class Judge(DirectJudge):
-
         def judge(self, rows, *args, **kwargs):
             return super().judge([serving_row(r) for r in rows], *args, **kwargs)
 
         def select_experts(self, rows):
-            if any((row.get('_v6gd7oavvss5c4jnyhxhc') for row in rows)):
+            if any((row.get('expert') for row in rows)):
                 raise ValueError('This release serves the common model only')
-            return [{'_v6gd7oavvss5c4jnyhxhc': None, 'source': 'no_experts', 'confidence': None} for _ in rows]
+            return [{'expert': None, 'source': 'no_experts', 'confidence': None} for _ in rows]
+
     tok = AutoTokenizer.from_pretrained(tokenizer_dir, local_files_only=True)
-    kw = dict(runtime_dir=runtime_dir, n_ctx=n_ctx, n_seq_max=seqs, max_length=n_ctx, flash_attn=flash_attn, n_ubatch=512)
+    kw = dict(
+        runtime_dir=runtime_dir, n_ctx=n_ctx, n_seq_max=seqs, max_length=n_ctx, flash_attn=flash_attn, n_ubatch=512
+    )
     if recipe:
         kw.update(device_prefix_cache=True, device_prefix_slots=1, token_cache_entries=256)
     return Judge(gguf, tok, **kw)
+
+
 WARM_FORK_QUESTIONS = 4
 
+
 def warm_up(judge, buckets=WARM_BUCKETS):
-    import m9qy9tkk89d48t0lxgr4e as ts
+    import http_server as ts
+
     buckets = [b for b in buckets if b < judge.max_length]
-    report = ts._v5fk4i78hn5w2galet9gy(judge, buckets, max_questions=judge.n_seq_max)
+    report = ts.warmup_judge(judge, buckets, max_questions=judge.n_seq_max)
     if hasattr(judge, 'judge_many'):
         for length in buckets:
-            rows = ts._v2lbiu05abgrrc954oo6t(judge.tokenizer, length, 'choice', questions=WARM_FORK_QUESTIONS)
+            rows = ts.warmup_rows(judge.tokenizer, length, 'choice', questions=WARM_FORK_QUESTIONS)
             t = time.perf_counter()
             judge.judge(rows, share_prefix=True)
-            report.append({'bucket': length, 'kind': 'choice', 'questions': len(rows), 'route': 'fork', 'ms': round((time.perf_counter() - t) * 1000.0, 1)})
-            pair = [ts._v2lbiu05abgrrc954oo6t(judge.tokenizer, length, kind) for kind in ('noul', 'choice')]
+            report.append(
+                {
+                    'bucket': length,
+                    'kind': 'choice',
+                    'questions': len(rows),
+                    'route': 'fork',
+                    'ms': round((time.perf_counter() - t) * 1000.0, 1),
+                }
+            )
+            pair = [ts.warmup_rows(judge.tokenizer, length, kind) for kind in ('noul', 'choice')]
             t = time.perf_counter()
             judge.judge_many(pair)
-            report.append({'bucket': length, 'requests': len(pair), 'route': 'batch', 'ms': round((time.perf_counter() - t) * 1000.0, 1)})
+            report.append(
+                {
+                    'bucket': length,
+                    'requests': len(pair),
+                    'route': 'batch',
+                    'ms': round((time.perf_counter() - t) * 1000.0, 1),
+                }
+            )
     return report
+
 
 def stage(name, t0):
     print(json.dumps({'starting': name, 'elapsed_s': round(time.perf_counter() - t0, 1)}), flush=True)
+
 
 def build(a):
     recipe = a.mode == 'recipe'
@@ -1151,9 +1403,24 @@ def build(a):
     if a.backend == 'hf' and recipe and (getattr(a, 'kernel_tune', 'pinned') == 'pinned'):
         report['kernel_pins'] = pin_kernels(getattr(a, 'state_dir', None), a.device)
     if a.backend == 'hf':
-        judge = HFJudge(a.model, device=a.device, max_length=a.max_length, recipe=recipe, w8a8=getattr(a, 'w8a8', 'off') if recipe else 'off', exact_max=getattr(a, 'exact_max', 0), graph_max=getattr(a, 'graph_max', 0), precision_route=recipe and getattr(a, 'precision_route', 'off') == 'on', memory_limit=int(float(getattr(a, 'memory_limit', 0) or 0) * 2 ** 30), state_dir=getattr(a, 'state_dir', None))
+        judge = HFJudge(
+            a.model,
+            device=a.device,
+            max_length=a.max_length,
+            recipe=recipe,
+            int8_quant=getattr(a, 'int8_quant', 'off') if recipe else 'off',
+            exact_max=getattr(a, 'exact_max', 0),
+            graph_max=getattr(a, 'graph_max', 0),
+            precision_route=recipe and getattr(a, 'precision_route', 'off') == 'on',
+            memory_limit=int(float(getattr(a, 'memory_limit', 0) or 0) * 2**30),
+            state_dir=getattr(a, 'state_dir', None),
+        )
         judge.state_dir = a.state_dir
-        report['precision'] = {k: judge.quant[k] for k in ('precision', 'request', 'reason', 'dual', 'dual_refused', 'source', 'selftest') if k in judge.quant}
+        report['precision'] = {
+            k: judge.quant[k]
+            for k in ('precision', 'request', 'reason', 'dual', 'dual_refused', 'source', 'selftest')
+            if k in judge.quant
+        }
         report['max_length'], report['context_cap'] = (judge.max_length, judge.context_cap)
         report['memory_profile'], report['load_seconds'] = (judge.memory_profile, judge.load_seconds)
         report['glue'] = judge.glue
@@ -1171,26 +1438,41 @@ def build(a):
                 report['graphs'] = judge.precapture()
             else:
                 report['graphs'] = {'mode': 'background', 'queued': judge.defer_graphs()}
-            stage('kernel warm-up (kernel configs from the saved profiles; --kernel-tune full tunes them on this GPU)', t)
-            report['kernels'] = kernel_profile(judge, a.state_dir, lambda: warm_up(judge), prewarm=getattr(a, 'prewarm_batches', 'off') == 'on')
+            stage(
+                'kernel warm-up (kernel configs from the saved profiles; --kernel-tune full tunes them on this GPU)', t
+            )
+            report['kernels'] = kernel_profile(
+                judge, a.state_dir, lambda: warm_up(judge), prewarm=getattr(a, 'prewarm_batches', 'off') == 'on'
+            )
         report['exact_max'], report['graph_max'] = (judge.exact_max, judge.graph_max)
         if judge.bench.device.type == 'cuda':
             torch.cuda.empty_cache()
         if judge.load_peak is not None:
             dev = judge.bench.device
-            report['memory'] = {'load_peak_gib': round(judge.load_peak / 2 ** 30, 2), 'start_peak_gib': round(torch.cuda.max_memory_reserved(dev) / 2 ** 30, 2), 'reserved_gib': round(torch.cuda.memory_reserved(dev) / 2 ** 30, 2), 'allocated_gib': round(torch.cuda.memory_allocated(dev) / 2 ** 30, 2)}
+            report['memory'] = {
+                'load_peak_gib': round(judge.load_peak / 2**30, 2),
+                'start_peak_gib': round(torch.cuda.max_memory_reserved(dev) / 2**30, 2),
+                'reserved_gib': round(torch.cuda.memory_reserved(dev) / 2**30, 2),
+                'allocated_gib': round(torch.cuda.memory_allocated(dev) / 2**30, 2),
+            }
     else:
-        judge = gguf_judge(a.model, a.tokenizer, a.runtime, n_ctx=a.n_ctx, seqs=a.seqs, flash_attn=a.flash_attn, recipe=recipe)
+        judge = gguf_judge(
+            a.model, a.tokenizer, a.runtime, n_ctx=a.n_ctx, seqs=a.seqs, flash_attn=a.flash_attn, recipe=recipe
+        )
         if recipe:
             warm_up(judge)
     report['start_seconds'] = round(time.perf_counter() - t, 1)
     return (judge, report)
 
+
 def parser():
     ap = argparse.ArgumentParser(prog='serve')
     ap.add_argument('--backend', choices=('hf', 'gguf'), default='hf')
     ap.add_argument('--mode', choices=('recipe', 'plain'), default='recipe')
-    ap.add_argument('--model', help='merged HF folder (hf) or .gguf file (gguf); hf default: the INT8 weights, downloaded once into <state-dir>/weights')
+    ap.add_argument(
+        '--model',
+        help='merged HF folder (hf) or .gguf file (gguf); hf default: the INT8 weights, downloaded once into <state-dir>/weights',
+    )
     ap.add_argument('--tokenizer', help='HF tokenizer folder (gguf)')
     ap.add_argument('--runtime', help='folder with the llama.cpp shared library (gguf)')
     ap.add_argument('--device', default='cuda')
@@ -1198,41 +1480,92 @@ def parser():
     ap.add_argument('--n-ctx', type=int, default=8192)
     ap.add_argument('--seqs', type=int, default=4)
     ap.add_argument('--flash-attn', type=int, default=-1)
-    ap.add_argument('--w8a8', choices=('auto', 'off'), default='auto', help='hf recipe: 8-bit weights when this GPU supports them and has enough memory (auto), else bfloat16')
-    ap.add_argument('--kernel-tune', choices=('pinned', 'full'), default='pinned', help='hf recipe: FLA kernel configs from the saved/shipped profiles (pinned, no autotune wait) or Triton autotune on first use (full)')
-    ap.add_argument('--route-tune', choices=('auto', 'off'), default='off', help='hf recipe: time the routes once per GPU and save the limits in --state-dir (off: defaults)')
-    ap.add_argument('--precision-route', choices=('off', 'on'), default='off', help='hf recipe, opt-in: keep the bfloat16 weights too and run long inputs in bfloat16 where that is faster on this GPU')
-    ap.add_argument('--memory-limit', type=float, default=0, help='hf: plan and allocate as on a card with this many GiB (0 = the whole card)')
+    ap.add_argument(
+        '--w8a8',
+        choices=('auto', 'off'),
+        default='auto',
+        help='hf recipe: 8-bit weights when this GPU supports them and has enough memory (auto), else bfloat16',
+    )
+    ap.add_argument(
+        '--kernel-tune',
+        choices=('pinned', 'full'),
+        default='pinned',
+        help='hf recipe: FLA kernel configs from the saved/shipped profiles (pinned, no autotune wait) or Triton autotune on first use (full)',
+    )
+    ap.add_argument(
+        '--route-tune',
+        choices=('auto', 'off'),
+        default='off',
+        help='hf recipe: time the routes once per GPU and save the limits in --state-dir (off: defaults)',
+    )
+    ap.add_argument(
+        '--precision-route',
+        choices=('off', 'on'),
+        default='off',
+        help='hf recipe, opt-in: keep the bfloat16 weights too and run long inputs in bfloat16 where that is faster on this GPU',
+    )
+    ap.add_argument(
+        '--memory-limit',
+        type=float,
+        default=0,
+        help='hf: plan and allocate as on a card with this many GiB (0 = the whole card)',
+    )
     ap.add_argument('--exact-max', type=int, default=0, help='hf: exact path up to this many prompt tokens (0 = auto)')
     ap.add_argument('--graph-max', type=int, default=0, help='hf: CUDA graphs up to this many tail tokens (0 = auto)')
     ap.add_argument('--state-dir', default=str(Path.home() / '.cache' / 'systemone_runtime'))
-    ap.add_argument('--graphs', choices=('background', 'start'), default='background', help='hf recipe: capture CUDA graphs after the server is up, while idle (background: answers at once, eagerly until each graph exists) or all before serving (start)')
-    ap.add_argument('--prewarm-batches', choices=('off', 'on'), default='off', help='hf recipe: tune every concurrent batch shape at the first start (on) instead of at first use')
+    ap.add_argument(
+        '--graphs',
+        choices=('background', 'start'),
+        default='background',
+        help='hf recipe: capture CUDA graphs after the server is up, while idle (background: answers at once, eagerly until each graph exists) or all before serving (start)',
+    )
+    ap.add_argument(
+        '--prewarm-batches',
+        choices=('off', 'on'),
+        default='off',
+        help='hf recipe: tune every concurrent batch shape at the first start (on) instead of at first use',
+    )
     ap.add_argument('--host', default='127.0.0.1')
     ap.add_argument('--port', type=int, default=8010)
     ap.add_argument('--name', default=DEFAULT_NAME)
     return ap
+
+
 HF_REPO = 'sky7350/Mica-v0.5-4B'
 DEFAULT_NAME = 'mica-v0.5-4b'
+
 
 def preflight(a):
     if sys.version_info < (3, 10):
         raise SystemExit('This server needs Python 3.10 or newer (this is Python %d.%d).' % sys.version_info[:2])
     if a.backend == 'gguf' and (not (a.model and a.tokenizer and a.runtime)):
-        raise SystemExit('--backend gguf needs --model <file.gguf>, --tokenizer <folder> and --runtime <llama.cpp build>')
+        raise SystemExit(
+            '--backend gguf needs --model <file.gguf>, --tokenizer <folder> and --runtime <llama.cpp build>'
+        )
     if a.backend == 'hf' and str(a.device).startswith('cuda') and (not torch.cuda.is_available()):
-        raise SystemExit('PyTorch sees no NVIDIA GPU (torch %s, CUDA build %s). Install the CUDA build of torch as in the README (on Windows: requirements-windows.txt), or use the GGUF backend on llama.cpp for AMD, Apple or CPU.' % (torch.__version__, torch.version.cuda or 'none'))
+        raise SystemExit(
+            'PyTorch sees no NVIDIA GPU (torch %s, CUDA build %s). Install the CUDA build of torch as in the README (on Windows: requirements-windows.txt), or use the GGUF backend on llama.cpp for AMD, Apple or CPU.'
+            % (torch.__version__, torch.version.cuda or 'none')
+        )
+
 
 def fetch_weights(state_dir):
-    import m59i8a56wgcx69l9bd9nz as w8_runtime
+    import int8_runtime as int8_runtime
+
     target = Path(state_dir) / 'weights'
     folder = target / 'int8'
-    if (folder / w8_runtime.FILE).is_file() and (folder / 'config.json').is_file():
+    if (folder / int8_runtime.FILE).is_file() and (folder / 'config.json').is_file():
         return str(folder)
-    print('Downloading the INT8 weights (about 4.9 GB) from %s into %s. This happens once; later starts reuse them.' % (HF_REPO, target), flush=True)
+    print(
+        'Downloading the INT8 weights (about 4.9 GB) from %s into %s. This happens once; later starts reuse them.'
+        % (HF_REPO, target),
+        flush=True,
+    )
     from huggingface_hub import snapshot_download
+
     snapshot_download(HF_REPO, allow_patterns=['int8/*'], local_dir=str(target))
     return str(folder)
+
 
 def ready_message(a, report):
     url = 'http://%s:%d/v1/systemone' % (a.host, a.port)
@@ -1242,9 +1575,11 @@ def ready_message(a, report):
         text += ' CUDA graphs are being captured in the background; until then short requests run a little slower. GET /health shows how many are done.'
     return text
 
+
 def main(argv=None):
-    import m9qy9tkk89d48t0lxgr4e as ts
+    import http_server as ts
     from http.server import ThreadingHTTPServer
+
     a = parser().parse_args(argv)
     preflight(a)
     if a.backend == 'hf' and (not a.model):
@@ -1257,14 +1592,35 @@ def main(argv=None):
     ts.JUDGE, ts.MODEL_NAME = (judge, a.name)
     handler = ts.Handler
     if a.mode == 'recipe':
-        handler = ts.desktop_handler(types.SimpleNamespace(keep_alive=True, keep_alive_timeout=15.0, keep_warm_seconds=0))
+        handler = ts.desktop_handler(
+            types.SimpleNamespace(keep_alive=True, keep_alive_timeout=15.0, keep_warm_seconds=0)
+        )
     try:
         server = ThreadingHTTPServer((a.host, a.port), handler)
     except OSError as exc:
-        raise SystemExit('Cannot listen on %s:%d (%s). Another server may be using the port; pass --port.' % (a.host, a.port, exc.strerror or exc))
-    print(json.dumps({'serving': f'http://{a.host}:{a.port}/v1/systemone', 'model': a.name, 'start': report}), flush=True)
+        raise SystemExit(
+            'Cannot listen on %s:%d (%s). Another server may be using the port; pass --port.'
+            % (a.host, a.port, exc.strerror or exc)
+        )
+    print(
+        json.dumps({'serving': f'http://{a.host}:{a.port}/v1/systemone', 'model': a.name, 'start': report}), flush=True
+    )
     print(ready_message(a, report), flush=True)
     server.serve_forever()
 
+
 def llama_server_command(server_bin, gguf, port=18084, n_ctx=8192, slots=4):
-    return [str(server_bin), '-m', str(gguf), '--port', str(port), '-c', str(n_ctx * slots), '-np', str(slots), '-ngl', '99', *DESKTOP_FLAGS]
+    return [
+        str(server_bin),
+        '-m',
+        str(gguf),
+        '--port',
+        str(port),
+        '-c',
+        str(n_ctx * slots),
+        '-np',
+        str(slots),
+        '-ngl',
+        '99',
+        *DESKTOP_FLAGS,
+    ]
