@@ -215,8 +215,9 @@ The values show the response shape only.
 | `score` | `["lowest level", ..., "highest level"]`, 2–255 levels | `level`, `expected_level`, `probabilities` |
 
 Optional per question: `"multi": true` (choice with several correct options), `"allow_cannot_grade": true` (score),
-`"abstain_threshold": <0..1>` (any type). Questions in one request share a single pass over the state; on an RTX 6000 Ada a 1k-token state with 4 questions takes about 70 ms. Inputs over 32,768 tokens and malformed requests get HTTP 400 with a message;
-nothing is truncated.
+`"abstain_threshold": <0..1>` (any type). Questions in one request share a single pass over the state; on an RTX 6000 Ada a 1k-token state with 4 questions takes about 70 ms. Malformed requests get HTTP 400 with a message.
+An input longer than the context is refused, never truncated: the GGUF server answers HTTP 422 with
+`{"error": {"type": "question_error", "code": "input_too_long", ...}}`, the INT8 server HTTP 400.
 
 `GET /health` returns `{"status": "ok", "model": ...}`, plus `graphs_ready`, `graphs_queued` and `warming` while CUDA graphs are being captured. A rejected request (400) says why in `detail`.
 

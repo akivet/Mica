@@ -23,8 +23,8 @@ POST /v1/systemone (alias /v1/decide)
                        [, "cannot_grade_probability": p]}
     with abstain_threshold, an answer also carries "confidence_pmax" and "abstain".
 Questions on the same state share the rendered prefix: the state is prefilled once and each question's suffix is
-decoded as an independent sequence. ``usage.input_tokens`` counts that shared prefix once. Invalid requests and
-inputs longer than the context return HTTP 400; input is never truncated.
+decoded as an independent sequence. ``usage.input_tokens`` counts that shared prefix once. Invalid requests return HTTP 400.
+An input longer than the context is refused with HTTP 422 (code input_too_long) and never truncated.
 """
 import argparse
 import json
@@ -32,6 +32,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .contract import answer_request
+from .direct_backend import InputTooLongError
 
 JUDGE = None
 MODEL_NAME = 'mica-v0.5-4b'
@@ -52,7 +53,7 @@ def input_tokens(rows):
 
 
 def answer(body):
-    """Answer one parsed request; ValueError means the request is invalid or too long."""
+    """Answer one parsed request; ValueError means the request is invalid, InputTooLongError that it is too long."""
     judged = []
 
     def predict(rows):
@@ -93,7 +94,9 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('request body is too large')
             body = json.loads(self.rfile.read(length) or b'{}')
             response = answer(body)
-        except ValueError as e:  # invalid JSON, contract violations, inputs over the context (never truncated)
+        except InputTooLongError as e:  # refused, not truncated; a question error, not a bad request
+            return self._send(422, {'error': {'type': 'question_error', 'code': 'input_too_long', 'message': str(e)}})
+        except ValueError as e:  # invalid JSON, contract violations
             return self._send(400, {'error': str(e)})
         except RecursionError:
             return self._send(400, {'error': 'request is nested too deeply'})
@@ -115,7 +118,7 @@ def main():
     ap.add_argument('--runtime', required=True, help='directory with the llama.cpp shared libraries')
     ap.add_argument('--port', type=int, default=8010)
     ap.add_argument('--host', default='127.0.0.1')
-    ap.add_argument('--n-ctx', type=int, default=32768, help='context per question (tokens); longer inputs get HTTP 400')
+    ap.add_argument('--n-ctx', type=int, default=32768, help='context per question (tokens); longer inputs get HTTP 422')
     # Each sequence holds a full --n-ctx of attention KV (about 1 GiB at 32k for this model at F16), so 8 sequences
     # plus BF16 weights fit a 24 GB GPU. More questions than --seqs are answered in windows of --seqs.
     ap.add_argument('--seqs', type=int, default=8, help='parallel sequences (questions decoded together)')
