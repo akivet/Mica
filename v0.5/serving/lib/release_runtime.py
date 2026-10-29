@@ -1408,7 +1408,7 @@ def build(a):
             device=a.device,
             max_length=a.max_length,
             recipe=recipe,
-            int8_quant=getattr(a, 'int8_quant', 'off') if recipe else 'off',
+            int8_quant=getattr(a, 'w8a8', 'off') if recipe else 'off',
             exact_max=getattr(a, 'exact_max', 0),
             graph_max=getattr(a, 'graph_max', 0),
             precision_route=recipe and getattr(a, 'precision_route', 'off') == 'on',
